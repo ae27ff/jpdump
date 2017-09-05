@@ -1,0 +1,248 @@
+var g_ImageData="";
+var g_ExifParent={}
+window.addEventListener('load',function(){
+  var up=document.getElementById('upload');
+  up.addEventListener('change', handleFileSelect, false);
+  up.value = '';
+  accordion_prepare();
+},false);
+function handleFileSelect(evt) {
+	var files = evt.target.files; // FileList object
+
+	// use the 1st file from the list
+	f = files[0];
+
+	var reader = new FileReader();
+
+	// Closure to capture the file information.
+	reader.onload = (function(theFile) {
+		return function(e) {
+			console.log('x');
+			g_ImageData=e.target.result;
+			previewImage(e.target.result);
+			//setTimeout(processData,250);
+		};
+	})(f);
+	reader.readAsBinaryString(f);
+
+	// Read in the image file as a data URL.
+	//reader.readAsText(f);
+}
+function processData(){
+	displayResults(processJPEG(g_ImageData));
+}
+
+
+var testimageexif = function() {
+    var image = new Image();
+    image.onload = function() {
+        EXIF.getData(image, function() {
+            alert(EXIF.pretty(this));
+        });
+    };
+	image.src="data:application/jpeg;base64," + btoa(g_ImageData);
+}
+
+
+
+
+function addPreviewEXIF(parent,json){
+	var exifinfo=displayEXIFInfo(json);
+	var elEXIF=accordion_create("EXIF Information",exifinfo);
+	parent.children[1].appendChild(elEXIF);
+}
+function getPreviewEXIF(parent){
+	g_ExifParent=parent
+
+	var image = new Image();
+    image.onload = function() {
+        EXIF.getData(image, function() {
+			 var allMetaData = EXIF.getAllTags(this);
+			 console.log(allMetaData)
+			addPreviewEXIF(g_ExifParent,allMetaData);
+            //alert(EXIF.pretty(this));
+        });
+    };
+	image.src="data:application/jpeg;base64," + btoa(g_ImageData);
+
+
+	/*
+	//var img2 = document.getElementById("preview");
+	//return
+    var ret=EXIF.getData(img2, function() {
+        var allMetaData = EXIF.getAllTags(this);
+		console.log(allMetaData)
+		addPreviewEXIF(g_ExifParent,allMetaData);
+    });
+	console.log(img2.complete)
+	console.log(ret)
+	*/
+}
+
+function previewImage(data){
+	var img=document.getElementById('preview');
+	img.onload=processData
+	img.src="data:application/jpeg;base64," + btoa(data);
+}
+function getPreviewDims(){
+	var img=document.getElementById('preview');
+	return img.naturalWidth+"x"+img.naturalHeight
+}
+
+function getDataURI(data){
+	return "data:application/octet-stream;base64," + btoa(data);
+}
+function getDataURIMT(data,mt){
+	return "data:"+mt+";base64," + btoa(data);
+}
+function getContentURL(content){
+	if(content==="") return "None";
+	return '<a href="'+getDataURIMT(hexdump(content,16),'text/plain')+'">View Hex</a> '+
+	'<a href="'+getDataURIMT(content,'text/plain')+'">View Text</a> '+
+	'<a href="'+getDataURI(content)+'">Download Raw</a>';
+}
+
+function displayDetailPre(name,value){
+	if(value==="") return "";
+	value=String(value).replaceAll(' ','&nbsp;');
+	return '<li><span class="detailname">'+name+': </span><div class="detailvalue presim">'+value+'</div></li>';
+}
+function displayDetail(name,value){
+	if(value==="") return "";
+	return '<li><span class="detailname">'+name+': </span><div class="detailvalue presim">'+value+'</div></li>';
+}
+function displayHeaderInfo(header){
+	var html="<ul>"+
+	displayDetail("Marker ID",header.magic+header.type)+
+	displayDetail("Offset",header.p)+
+	displayDetail("Len",header.len)+
+	displayDetail("Actual Size",header.actuallen)+"</ul><br><ul>"+
+	displayDetail("Uses",header.desc.uses)+"</ul><br><ul>"+
+	displayDetail("ContentLen",header.contentlen)+
+	displayDetail("Content",getContentURL(header.content));
+	//console.log(header.hasextendeddata);
+	if(header.hasextendeddata){
+		html+=displayDetail("Content Type",header.extendedtype);
+	}
+	html+="</ul>";
+
+	return html;
+}
+function displayImageInfo(info){
+	var html="<ul>"+
+	displayDetail("Filesize",info.filesize)+
+	displayDetail("Datasize",info.nextp)+
+	displayDetail("Resolution",getPreviewDims());
+
+	if(info.hasextraneous){
+		html+="</ul><br><ul>"+
+		displayDetail("Extraneous Data Exists",'<span class="warning">YES</span>')+
+		displayDetail("Extraneous Data",getContentURL(info.extraneous));
+	}
+	return html+"</ul>";
+}
+
+function displayJFIFInfo(jfif){
+	var html="<ul>"+
+	displayDetail("Version",jfif.version)+
+	displayDetail("Units",jfif.units)+
+	displayDetail("X Density",jfif.xdensity)+
+	displayDetail("Y Density",jfif.ydensity)+"</ul><br><ul>"+
+	displayDetail("Thumbnail Pixels",jfif.xthumbpixels+"x"+jfif.ythumbpixels+" ("+jfif.thumbpixels+")")+
+	displayDetail("Thumbnail Size",jfif.thumblen)+
+	displayDetail("Thumbnail",getContentURL(jfif.thumb));
+	if(jfif.extraneous.length>0){
+		html+="</ul><br><ul>"+
+		displayDetail("Extraneous Data Exists",'<span class="warning">YES</span>')+
+		displayDetail("Extraneous Data",getContentURL(jfif.extraneous));
+	}
+	return html+"</ul>";
+}
+function displayEXIFInfo(exif){
+	var html="<ul>"
+	for(prop in exif){
+		console.log(prop)
+		console.log(typeof exif[prop])
+		if(exif[prop] !== null && typeof exif[prop] === 'object' && !(exif[prop] instanceof Number || exif[prop] instanceof Array)){
+			console.log(Object.keys(exif[prop]).length)
+			console.log(exif[prop])
+			if(Object.keys(exif[prop]).length===0){
+				exif[prop]="Not present"
+			}else{
+				//exif[prop]="Present"
+				exif[prop]=JSON.stringify(exif[prop])
+			}
+		}
+		if(exif[prop] instanceof Array){
+			html+=displayDetail(prop,getContentURL(array2string(exif[prop])))+"</ul><br><ul>"
+		}else{
+			html+=displayDetailPre(prop,exif[prop])+"</ul><br><ul>"
+		}
+		console.log(exif[prop])
+		console.log(" ")
+	}
+	return html+"</ul>";
+}
+
+
+function displaySOF0Info(sof0){
+	var html="<ul>"+
+	displayDetail("Data Precision (bits/sample)",sof0.dataprec)+"</ul><br><ul>"+
+	displayDetail("Image Width",sof0.imgw)+
+	displayDetail("Image Height",sof0.imgh)+"</ul><br><ul>"+
+	displayDetail("Components",sof0.ncomponentsstr)+""
+	//html+="</ul><br><ul>"+
+	return html+"</ul>";
+}
+function displaySOF0ComponentInfo(comp){
+	var html="<ul>"+
+	displayDetail("Component Id",comp.idstr)+
+	displayDetail("Sampling Factors",comp.samplingstr)+
+	displayDetail("Quantization Table #",comp.qtablenum)+""
+	//html+="</ul><br><ul>"+
+	return html+"</ul>";
+}
+
+function displayResults(info){
+	var elImage=document.getElementById('image')
+	elImage.innerHTML="";
+	var elHeaders=[]
+	var elImageInfo=accordion_create('Image Info',displayImageInfo(info))
+	for(i=0;i<info.headers.length;i++){
+		var header=info.headers[i];
+		var headerinfo=displayHeaderInfo(header);
+		var elHeader = accordion_create(header.desc.shortname+" - "+header.desc.longname,headerinfo);
+		//console.log(header.hasextendeddata && header.extendedtype==="JFIF")
+		if(header.hasextendeddata && header.extendedtype==="EXIF"){
+			getPreviewEXIF(elHeader);
+		}
+		if(header.hasextendeddata && header.extendedtype==="JFIF"){
+			var jfifInfo=displayJFIFInfo(header.extendeddata);
+			var elJFIF = accordion_create(header.extendedtype+" Information",jfifInfo);
+			elHeader.children[1].appendChild(elJFIF);
+		}
+		if(header.hasextendeddata && header.extendedtype==="SOF"){
+			var extInfo=displaySOF0Info(header.extendeddata);
+			var elExtended = accordion_create(header.extendedtype+" Information",extInfo);
+			if(header.extendeddata.components.length>0){
+				for(j=0;j<header.extendeddata.components.length;j++){
+					//console.log(j)
+					//console.log(header.extendeddata.components[j])
+					//console.log(header.extendeddata.components)
+					var comp=header.extendeddata.components[j]
+					var elComponent=accordion_create(comp.idstr+' Component',displaySOF0ComponentInfo(comp))
+					elExtended.children[1].appendChild(elComponent);
+				}
+			}
+			elHeader.children[1].appendChild(elExtended);
+
+		}
+		elHeaders.push(elHeader)
+	}
+	var elHeaderInfo=accordion_create('Image Headers ('+info.headers.length+')',elHeaders)
+	elImage.appendChild(elImageInfo)
+	elImage.appendChild(elHeaderInfo)
+}
+
+
+

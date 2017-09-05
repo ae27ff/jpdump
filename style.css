@@ -1,0 +1,107 @@
+ /* Style the buttons that are used to open and close the accordion panel */
+.accordionentry{
+	border: 1px solid lightgray;
+	border-radius:5px;
+}
+.presim {
+    font-family: "Courier New", Courier, monospace;
+    white-space: pre-wrap;       /* CSS 3 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    white-space: -pre-wrap;      /* Opera 4-6 */
+    white-space: -o-pre-wrap;    /* Opera 7 */
+    word-wrap: break-word;       /* Internet Explorer 5.5+ */
+}
+button.accordion {
+    background-color: #eee;
+    color: #444;
+    padding: 10px;
+    width: 100%;
+    text-align: left;
+    border: none;
+    outline: none;
+
+	border-radius:5px;
+}
+
+/* Add a background color to the button if it is clicked on (add the .active class with JS), and when you move the mouse over it (hover) */
+button.accordion.active, button.accordion:hover {
+    background-color: #ddd;
+}
+
+/* Style the accordion panel. Note: hidden by default */
+div.panel {
+    padding: 0 18px;
+	background-color: rgba(128,128,128,0.05);
+
+}
+
+
+ul {
+	font-size:0.8em;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+
+	display:inline-block;
+}
+
+li {
+    float: left;
+	display: block;
+	padding-left: 8px;
+	padding-right: 16px;
+	padding-top:5px;
+	padding-bottom:5px;
+}
+
+li a {
+    display: inline-block;
+
+    text-decoration: underline;
+	background-color: rgba(128,200,128,0.3);
+	padding:3px;
+	border-radius:3px;
+}
+/*
+li a:hover {
+
+}
+*/
+.detailname{
+	font-weight:900;
+	color:#1d53ec;
+}
+.detailvalue{
+	background-color: rgb(250,250,250);
+
+  white-space: nowrap;
+  display:block;
+}
+
+body {
+  font-family: "Courier New", Courier, monospace;
+  font-size:1em;
+  background-color:white;
+}
+
+.warning{
+	font-weight:bold;
+	color:red;
+}
+form{
+	display: inline-block;
+	border: 1px solid gray;
+	width:100%;
+}
+input{
+	margin-bottom:5px;
+}
+#preview{
+	height:80px !important;
+	border: 1px solid gray;
+	margin-right:20px;
+	margin-left: 5px;
+	margin-top:5px;
+	margin-bottom:-5px;
+}
