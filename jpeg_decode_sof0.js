@@ -3,8 +3,8 @@ function processSOF0(data){
 	var p=0;
 	var sof0={dataprec:"",imgw:0,imgh:0,ncomponents:0,ncomponentsstr:"",components:[]}
 	sof0.dataprec=data.charCodeAt(p) //data precision in bits/sample.  12 and 16 not supported by most software.
-	sof0.imgw=hexdec(get2bytes(data,p+1))
-	sof0.imgh=hexdec(get2bytes(data,p+3))
+	sof0.imgh=hexdec(get2bytes(data,p+1))
+	sof0.imgw=hexdec(get2bytes(data,p+3))
 	sof0.ncomponents=data.charCodeAt(p+5)
 	sof0.ncomponentsstr=getSOF0ComponentsStr(sof0.ncomponents)
 	p=6
