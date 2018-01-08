@@ -94,6 +94,14 @@ function processHeader(data,p){
 		header.extendedtype="SOF";
 		header.extendeddata=processSOF0(header.content);
 	}
+	if(header.type=='ee'){
+		var app14=processAPP14(header.content);
+		if(app14.valid){
+			header.hasextendeddata=true;
+			header.extendedtype=app14.type;
+			header.extendeddata=app14.info;
+		}
+	}
 	if(header.type=="e0" && isJFIF(header.content)){
 		header.hasextendeddata=true;
 		header.extendedtype="JFIF";

@@ -142,7 +142,15 @@ function displayImageInfo(info){
 	}
 	return html+"</ul>";
 }
-
+function displayObjectInfo(obj){
+	var html="<ul>";
+	for (var property in obj) {
+		if (obj.hasOwnProperty(property)) {
+			html+=displayDetail(property,obj[property]);
+		}
+	}
+	return html+"</ul>";
+}
 function displayJFIFInfo(jfif){
 	var html="<ul>"+
 	displayDetail("Version",jfif.version)+
@@ -217,12 +225,12 @@ function displayResults(info){
 		if(header.hasextendeddata && header.extendedtype==="EXIF"){
 			getPreviewEXIF(elHeader);
 		}
-		if(header.hasextendeddata && header.extendedtype==="JFIF"){
+		else if(header.hasextendeddata && header.extendedtype==="JFIF"){
 			var jfifInfo=displayJFIFInfo(header.extendeddata);
 			var elJFIF = accordion_create(header.extendedtype+" Information",jfifInfo);
 			elHeader.children[1].appendChild(elJFIF);
 		}
-		if(header.hasextendeddata && header.extendedtype==="SOF"){
+		else if(header.hasextendeddata && header.extendedtype==="SOF"){
 			var extInfo=displaySOF0Info(header.extendeddata);
 			var elExtended = accordion_create(header.extendedtype+" Information",extInfo);
 			if(header.extendeddata.components.length>0){
@@ -236,7 +244,11 @@ function displayResults(info){
 				}
 			}
 			elHeader.children[1].appendChild(elExtended);
-
+		}
+		else if(header.hasextendeddata){
+			var objinfo=displayObjectInfo(header.extendeddata);
+			var elInfo = accordion_create(header.extendedtype+" Information",objinfo);
+			elHeader.children[1].appendChild(elInfo);
 		}
 		elHeaders.push(elHeader)
 	}
