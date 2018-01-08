@@ -17,9 +17,9 @@ function handleFileSelect(evt) {
 	// Closure to capture the file information.
 	reader.onload = (function(theFile) {
 		return function(e) {
-			console.log('x');
 			g_ImageData=e.target.result;
 			previewImage(e.target.result);
+			console.log('x');
 			//setTimeout(processData,250);
 		};
 	})(f);
@@ -82,6 +82,7 @@ function getPreviewEXIF(parent){
 function previewImage(data){
 	var img=document.getElementById('preview');
 	img.onload=processData
+	img.onerror=processData
 	img.src="data:application/jpeg;base64," + btoa(data);
 }
 function getPreviewDims(){
