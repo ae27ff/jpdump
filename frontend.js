@@ -96,10 +96,13 @@ function getDataURI(data){
 function getDataURIMT(data,mt){
 	return "data:"+mt+";base64," + btoa(data);
 }
+function getJsLink(data,mt=''){
+	return '#" onclick="' + "dataOverlayStub('"+btoa(data)+"')";
+}
 function getContentURL(content){
 	if(content==="") return "None";
-	return '<a href="'+getDataURIMT(hexdump(content,16),'text/plain')+'">View Hex</a> '+
-	'<a href="'+getDataURIMT(content,'text/plain')+'">View Text</a> '+
+	return '<a href="'+getJsLink(hexdump(content,16),'text/plain')+'">View Hex</a> '+
+	'<a href="'+getJsLink(content,'text/plain')+'">View Text</a> '+
 	'<a href="'+getDataURI(content)+'">Download Raw</a>';
 }
 
@@ -257,5 +260,24 @@ function displayResults(info){
 	elImage.appendChild(elHeaderInfo)
 }
 
+/*
+String.prototype.replaceAll = function(target, replacement) {
+  return this.split(target).join(replacement);
+};
+*/
+function dataOverlayStub(data_b64){
+	var data = atob(data_b64);
+	showDataOverlay(data);
+}
+function showDataOverlay(data){
+	var el = document.getElementById('data-overlay');
+	var el_text = document.getElementById('data-overlay-content');
+	el_text.value = data;
+	el.style.display="block";
+}
+function hideDataOverlay(){
+	var el = document.getElementById('data-overlay');
+	el.style.display="none";
+}
 
 
