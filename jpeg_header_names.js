@@ -41,7 +41,7 @@ function jpeg_headerdump_name(header){
 	out=jpeg_headerdump_name_repl("e6",["APP6","Application Segment 6","NITF Lossless profile"],header,out);
 	out=jpeg_headerdump_name_replN(0xe7,0xe9,0xe0,["APP%N%","Application Segment %N%",""],header,out);
 	out=jpeg_headerdump_name_repl("ea",["APP10","Application Segment 10","ActiveObject multimedia"],header,out);
-	out=jpeg_headerdump_name_repl("eb",["APP11","Application Segment 11","HELIOS JPEG Resources,OPI Postscript"],header,out);
+	out=jpeg_headerdump_name_repl("eb",["APP11","Application Segment 11","JPEGH-HDR,HELIOS JPEG Resources,OPI Postscript"],header,out);
 	out=jpeg_headerdump_name_repl("ec",["APP12","Application Segment 12","Old digicam info,Photoshop Save for Web: Ducky"],header,out);
 	out=jpeg_headerdump_name_repl("ed",["APP13","Application Segment 13","Photoshop IRB,8BIM,IPTC"],header,out);
 	out=jpeg_headerdump_name_replN(0xee,0xef,0xe0,["APP%N%","Application Segment %N%","Adobe DCT Information"],header,out);
