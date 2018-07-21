@@ -17,7 +17,24 @@ function jpeg_headerdump_name_replN(min,max,diff,desc,test,original){
 function jpeg_headerdump_name(header){
 	out={shortname:"",longname:"Unknown",uses:""};
 
-	out=jpeg_headerdump_name_repl("4f",["J2K-SOC","Start of Codestream","JPEG2000 Data"],header,out);
+	out=jpeg_headerdump_name_repl("4f",["J2K-SOC","Start of Codestream","JPEG2000 Signature"],header,out);
+	out=jpeg_headerdump_name_repl("90",["J2K-SOT","Start of Tile-part",""],header,out);
+	out=jpeg_headerdump_name_repl("93",["J2K-SOD","Start of Data",""],header,out);
+	out=jpeg_headerdump_name_repl("51",["J2K-SIZ","Image and Tile-size",""],header,out);
+	out=jpeg_headerdump_name_repl("52",["J2K-COD","Coding style Default",""],header,out);
+	out=jpeg_headerdump_name_repl("53",["J2K-COC","Coding style Component",""],header,out);
+	out=jpeg_headerdump_name_repl("5e",["J2K-RGN","Region of Interest",""],header,out);
+	out=jpeg_headerdump_name_repl("5c",["J2K-QCD","Quantization Default",""],header,out);
+	out=jpeg_headerdump_name_repl("5d",["J2K-QCC","Quantization Component",""],header,out);
+	out=jpeg_headerdump_name_repl("5f",["J2K-POD","Progression Order Default",""],header,out);
+	out=jpeg_headerdump_name_repl("55",["J2K-TLM","Tile-part Lengths Main Header",""],header,out);
+	out=jpeg_headerdump_name_repl("57",["J2K-PLM","Packet Length Main Header",""],header,out);
+	out=jpeg_headerdump_name_repl("58",["J2K-PLT","Packet Length Tile-part Header",""],header,out);
+	out=jpeg_headerdump_name_repl("60",["J2K-PPM","Packed Packet-headers Main Header",""],header,out);
+	out=jpeg_headerdump_name_repl("61",["J2K-PPT","Packed Packet-headers Tile-part header",""],header,out);
+	out=jpeg_headerdump_name_repl("91",["J2K-SOP","Start of Packet",""],header,out);
+	out=jpeg_headerdump_name_repl("92",["J2K-EPH","End of Packet Header",""],header,out);
+	out=jpeg_headerdump_name_repl("64",["J2K-CME","Comment and Extension",""],header,out);
 
 	out=jpeg_headerdump_name_replN(0xc0,0xc3,0xc0,["SOF%N%","Start of DCT Frame %N%",""],header,out);
 	out=jpeg_headerdump_name_repl("c4",["DHT","Huffman Table",""],header,out);
