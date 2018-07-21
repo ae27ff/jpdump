@@ -16,6 +16,9 @@ function jpeg_headerdump_name_replN(min,max,diff,desc,test,original){
 }
 function jpeg_headerdump_name(header){
 	out={shortname:"",longname:"Unknown",uses:""};
+
+	out=jpeg_headerdump_name_repl("4F",["J2K","JPEG2000","JPEG2000 Data"],header,out);
+
 	out=jpeg_headerdump_name_replN(0xc0,0xc3,0xc0,["SOF%N%","Start of DCT Frame %N%",""],header,out);
 	out=jpeg_headerdump_name_repl("c4",["DHT","Huffman Table",""],header,out);
 	out=jpeg_headerdump_name_replN(0xc5,0xc7,0xc0,["SOF%N%","Start of Differential Frame %N%",""],header,out);
