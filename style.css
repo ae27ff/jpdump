@@ -102,6 +102,8 @@ form{
 	display: inline-block;
 	border: 1px solid gray;
 	width:100%;
+        min-height: 100px;
+        position: relative;
 }
 input{
 	margin-bottom:5px;
@@ -113,6 +115,10 @@ input{
 	margin-left: 5px;
 	margin-top:5px;
 	margin-bottom:-5px;
+        float:left;
+}
+#formright{
+    
 }
 
 #data-overlay{
