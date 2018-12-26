@@ -2,6 +2,8 @@
 
 
 function processJPEG(data){
+        console.log(data);
+        console.log(typeof data);
 	var info={
 		valid:true,
 		filesize:data.length,
@@ -9,7 +11,7 @@ function processJPEG(data){
 		headers:[],
 		hasextraneous:false,
 		extraneous:""
-	}
+	};
 
 	for(var p=0;p<data.length;p++){
 		var header=processHeader(data,p)

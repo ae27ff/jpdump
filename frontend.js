@@ -7,6 +7,7 @@ window.addEventListener('load',function(){
   accordion_prepare();
 },false);
 function handleFileSelect(evt) {
+        console.log("file select "+evt);
 	var files = evt.target.files; // FileList object
 
 	// use the 1st file from the list
@@ -17,8 +18,21 @@ function handleFileSelect(evt) {
 	// Closure to capture the file information.
 	reader.onload = (function(theFile) {
 		return function(e) {
-			g_ImageData=e.target.result;
-			previewImage(e.target.result);
+                        console.log("reader onload");
+
+                        window.g_debug_event=e;
+                        window.g_debug_target=e.target;
+                        window.g_debug_result=e.target.result;
+                        
+                        var result=null;
+                        if(typeof e.target.result === "undefined" || e.target.result===null){
+                            result=e.target.content;//IE11
+                        }else{
+                            result=e.target.result;
+                        }
+                        
+			g_ImageData=result;
+			previewImage(result);
 			console.log('x');
 			//setTimeout(processData,250);
 		};
@@ -28,6 +42,11 @@ function handleFileSelect(evt) {
 	// Read in the image file as a data URL.
 	//reader.readAsText(f);
 }
+
+function handleFileClick(obj){
+    console.log("file click "+obj);
+}
+
 function processData(){
 	displayResults(processJPEG(g_ImageData));
 }
@@ -96,7 +115,8 @@ function getDataURI(data){
 function getDataURIMT(data,mt){
 	return "data:"+mt+";base64," + btoa(data);
 }
-function getJsLink(data,mt=''){
+function getJsLink(data,mt){
+        if(typeof mt === "undefined") mt="";
 	return '#" onclick="' + "dataOverlayStub('"+btoa(data)+"')";
 }
 function getContentURL(content){
@@ -279,5 +299,3 @@ function hideDataOverlay(){
 	var el = document.getElementById('data-overlay');
 	el.style.display="none";
 }
-
-
