@@ -1,6 +1,6 @@
 
 function processAPP14(data){
-	var app14={valid:false,type:"",info};
+	var app14={valid:false,type:"",info:null};
 	if(isAPP14Adobe(data)){
 		app14.valid=true;
 		app14.type="Adobe";
