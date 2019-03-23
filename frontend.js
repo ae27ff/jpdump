@@ -1,10 +1,12 @@
 var g_ImageData="";
 var g_ExifParent={}
+branding.init();
 window.addEventListener('load',function(){
   var up=document.getElementById('upload');
   up.addEventListener('change', handleFileSelect, false);
   up.value = '';
   accordion_prepare();
+  branding.load("branding-bottom");
 },false);
 function handleFileSelect(evt) {
         console.log("file select "+evt);

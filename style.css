@@ -162,3 +162,9 @@ input{
   white-space:pre;
   overflow:scroll;
 }
+
+#branding-bottom{
+    right:0;
+    opacity: 0.75;
+    margin-top:10px;
+}
