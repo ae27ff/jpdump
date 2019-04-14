@@ -110,22 +110,46 @@ function getPreviewDims(){
 	var img=document.getElementById('preview');
 	return img.naturalWidth+"x"+img.naturalHeight
 }
-
+/*
 function getDataURI(data){
 	return "data:application/octet-stream;base64," + btoa(data);
 }
 function getDataURIMT(data,mt){
 	return "data:"+mt+";base64," + btoa(data);
 }
+*/
 function getJsLink(data,mt){
         if(typeof mt === "undefined") mt="";
 	return '#" onclick="' + "dataOverlayStub('"+btoa(data)+"')";
+}
+
+function ieDownloadData(data,filename){
+    var dlData = getDataBlob(data);
+    navigator.msSaveBlob(dlData, filename);
+}
+function getDataBlob(data){
+    return new Blob([data], {type: 'application/octet-stream;charset=iso-8859-1;'});//TODO: IE is messing up file encoding!
+}
+
+function getDlLink(data, filename){
+    
+    var linkElem = document.createElement('a');
+    if (navigator.msSaveBlob) {
+        linkElem.setAttribute('onclick', "ieDownloadData(atob('"+btoa(data)+"'),'"+filename+"')");
+    }else{
+        var dlData = getDataBlob(data);
+        var dlURL = window.URL.createObjectURL(dlData);
+        linkElem.href = dlURL;
+        linkElem.setAttribute('download', filename);
+    }
+    linkElem.innerHTML="Download Raw";
+    return linkElem.outerHTML;
 }
 function getContentURL(content){
 	if(content==="") return "None";
 	return '<a href="'+getJsLink(hexdump(content,16),'text/plain')+'">View Hex</a> '+
 	'<a href="'+getJsLink(content,'text/plain')+'">View Text</a> '+
-	'<a href="'+getDataURI(content)+'">Download Raw</a>';
+	getDlLink(content,'output.bin');
 }
 
 function displayDetailPre(name,value){
