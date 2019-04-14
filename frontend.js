@@ -122,13 +122,27 @@ function getJsLink(data,mt){
         if(typeof mt === "undefined") mt="";
 	return '#" onclick="' + "dataOverlayStub('"+btoa(data)+"')";
 }
-
+function stobuf(str) {
+  var buf = new ArrayBuffer(str.length*2);
+  var bufView = new Uint8Array(buf);
+  for (var i=0, strLen=str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+    if(str.charCodeAt(i)<0 || str.charCodeAt(i)>255){
+        console.log("!!! "+str.charCodeAt(i));
+    }
+  }
+  return buf;
+}
 function ieDownloadData(data,filename){
     var dlData = getDataBlob(data);
     navigator.msSaveBlob(dlData, filename);
 }
 function getDataBlob(data){
-    return new Blob([data], {type: 'application/octet-stream;charset=iso-8859-1;'});//TODO: IE is messing up file encoding!
+    var buf = stobuf(data);
+    console.log(buf)
+    //data=decodeURIComponent(escape(data));
+    //data=unescape(encodeURIComponent(data));
+    return new Blob([buf], {type: 'application/octet-stream;charset=utf-8;'});//TODO: IE is messing up file encoding!
 }
 
 function getDlLink(data, filename){
