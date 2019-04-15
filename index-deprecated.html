@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>jpdump - JPEG Header Viewer</title>
+<link rel="stylesheet" type="text/css" href="lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" type="text/css" href="lib/deprecated/style.css?v=2a1" />
+<script src="lib/bootstrap/js/jquery-3.2.1.min.js"></script>
+<script src="lib/bootstrap/js/bootstrap.bundle.js"></script>
+
+<link rel="stylesheet" type="text/css" href="lib/deprecated/accordion.css">
+<script src="lib/util/compat.js"></script>
+<script src="lib/deprecated/accordion.js"></script>
+<script src="lib/util/xml2json.min.js"></script>
+<script src="lib/jpeg/exif.js"></script>
+<script src="lib/jpeg/jpeg_util.js"></script>
+<script src="lib/jpeg/jpeg_header_names.js"></script>
+<script src="lib/jpeg/jpeg_decode_app14.js"></script>
+<script src="lib/jpeg/jpeg_decode_sof0.js"></script>
+<script src="lib/jpeg/jpeg_decode_jfif.js"></script>
+<script src="lib/jpeg/jpeg_decode_exif.js"></script>
+<script src="lib/jpeg/jpeg_decode.js"></script>
+<script src="branding.js"></script>
+<script src="lib/ui/frontend.js?v=2a1"></script>
+<script src="/ga.js"></script>
+</head>
+<body>
+
+    <div id="deprecated-form">
+<h2>jpdump - JPEG Header Viewer</h2>
+<form enctype="multipart/form-data">
+<img alt="Image Preview" title="Image Preview" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gU3ZnIFZlY3RvciBJY29ucyA6IGh0dHA6Ly93d3cub25saW5ld2ViZm9udHMuY29tL2ljb24gLS0+DQo8IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDEuMS8vRU4iICJodHRwOi8vd3d3LnczLm9yZy9HcmFwaGljcy9TVkcvMS4xL0RURC9zdmcxMS5kdGQiPg0KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IiB2aWV3Qm94PSIwIDAgMTAwMCAxMDAwIiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCAxMDAwIDEwMDAiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPG1ldGFkYXRhPiBTdmcgVmVjdG9yIEljb25zIDogaHR0cDovL3d3dy5vbmxpbmV3ZWJmb250cy5jb20vaWNvbiA8L21ldGFkYXRhPg0KPGc+PHBhdGggZD0iTTg4MS4xLDEzMi41SDExOC45QzU5LDEzMi41LDEwLDE4MS41LDEwLDI0MS40djUxNy4zYzAsNTkuOSw0OSwxMDguOSwxMDguOSwxMDguOWg3NjIuMmM1OS45LDAsMTA4LjktNDksMTA4LjktMTA4LjlWMjQxLjRDOTkwLDE4MS41LDk0MSwxMzIuNSw4ODEuMSwxMzIuNXogTTk0OS4yLDc0Ny4zYzAsNTQuOS0yNC41LDc5LjQtNzkuNCw3OS40SDEzMC4zYy01NC45LDAtNzkuNC0yNC41LTc5LjQtNzkuNFYyNTIuN2MwLTU0LjksMjQuNS03OS40LDc5LjQtNzkuNGg3MzkuNWM1NC45LDAsNzkuNCwyNC41LDc5LjQsNzkuNFY3NDcuM3ogTTMxNi4zLDQxOC4zTDQxOC4zLDUwMGwyNjUuNC0yMjQuNmwyMDQuMiwxODMuOHYzMDYuM0gxMTIuMVY1ODEuN0wzMTYuMyw0MTguM3ogTTE5My44LDIzNC42Yy00NS4xLDAtODEuNywzNi42LTgxLjcsODEuN3MzNi42LDgxLjcsODEuNyw4MS43czgxLjctMzYuNiw4MS43LTgxLjdTMjM4LjksMjM0LjYsMTkzLjgsMjM0LjZ6Ii8+PC9nPg0KPC9zdmc+" id="preview">
+<div id="formright">
+Select a file to analyze:<br><input id="upload" accept=".jpg,.jpeg,.j2c,.j2k,image/jpeg" type="file" name="fileup" size=30 onclick="handleFileClick(this)">
+</div>
+</form>
+
+<div id="info">
+<div id="image">
+</div>
+</div>
+<hr>
+<div class="branding" id="branding-bottom"></div>
+<div id="data-overlay"><div id="data-overlay-inner"><div id="data-overlay-title">Viewing Data:</div><a href="#" onclick="hideDataOverlay()">[X]</a>
+<div id="data-overlay-contentcontainer">
+<textarea id="data-overlay-content">
+
+
+
+</textarea>
+</div>
+</div></div>
+
+    </div>
+    
+    
+    <div class="container">
+        
+        x
+    </div>
+    
+    
+    
+    
+    
+    
+    
+</body>
+</html>

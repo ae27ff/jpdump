@@ -1,0 +1,47 @@
+#preview{
+	height:80px !important;
+        max-width:150px;
+}
+#image{
+    min-height:100px;
+}
+#data-overlay-content{
+	xwidth:100%;
+	xheight:100%;
+	background-color: lightgray;
+	resize: none;
+  white-space:pre;
+  overflow:scroll;
+  xmin-width: 80vh;
+  min-height: 50vh;
+}
+
+.modal-dialog{
+    max-width: 80vw;
+    max-height: 80vh;
+}
+
+pre,textarea{
+font-family: "Courier New", Courier, monospace;
+}
+.presim {
+    font-family: "Courier New", Courier, monospace;
+    white-space: pre-wrap;       /* CSS 3 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    white-space: -pre-wrap;      /* Opera 4-6 */
+    white-space: -o-pre-wrap;    /* Opera 7 */
+    word-wrap: break-word;       /* Internet Explorer 5.5+ */
+}
+.image{
+    background-color: whitesmoke;
+}
+.detailname{
+    background-color: #dddddd;
+}
+.detailvalue{
+    background-color: #eeeeee;
+}
+
+.detailvalue a{
+    background-color: lightgreen;
+}
