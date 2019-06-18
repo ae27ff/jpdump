@@ -268,7 +268,7 @@ function displaySOF0Info(sof0){
 }
 function displaySOF0ComponentInfo(comp){
 	var html="<ul>"+
-	displayDetail("Component Id",comp.idstr)+
+	displayDetail("Component Id",comp.id+" ("+comp.idstr+")")+
 	displayDetail("Sampling Factors",comp.samplingstr)+
 	displayDetail("Quantization Table #",comp.qtablenum)+""
 	//html+="</ul><br><ul>"+
@@ -288,7 +288,7 @@ function displayScanInfo(sos){
 function displayScanComponentInfo(comp){
     //var component={id:0,idstr:"",actn:0,dctn:0};
     var html="<ul>"+
-    displayDetail("Component Id",comp.idstr)+
+    displayDetail("Component Id",comp.id+" ("+comp.idstr+")")+
     displayDetail("AC Table #",comp.actn)+
     displayDetail("DC Table #",comp.dctn)+""
     //html+="</ul><br><ul>"+
