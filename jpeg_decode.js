@@ -153,6 +153,9 @@ function processHeader(data,p){
 	}
 	if(header.type=="da"){//technically by spec. SOS has a header length, but we include the scan data as its content because of jpdump limitations
 		header.len+=" (Scanned)";
+                header.hasextendeddata=true;
+                header.extendedtype="Scan";
+                header.extendeddata=processSOS(header.content);
 	}
 
 	return header
