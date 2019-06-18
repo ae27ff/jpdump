@@ -31,14 +31,17 @@ function getSOSComponentsStr(ncomponents){
 
 //TODO: detect extraneous scan data (beyond scan length)?
 function processSOS(data){
-    var sos = {scanlen:0, ncomponents:0, ncomponentsstr:"", components:[], sss:0, ess:0, sabp:0, hcdata:""};
+    var sos = {ncomponents:0, ncomponentsstr:"", components:[], sss:0, ess:0, sabp:0, hcdata:""};
     var p=0;
     //thanks to DCube Software Technologies for overview: http://vip.sugovica.hu/Sardi/kepnezo/JPEG%20File%20Layout%20and%20Format.htm
     //Length                        2 bytes      This must be equal to 6+2*(number of components in scan).
-    sos.scanlen = hexdec( get2bytes(data,p));
+    //sos.scanlen = hexdec( get2bytes(data,p));
+    p=-2;// the above line is an oversight, the scan length decoded here is the same as the *header length* we decode before we get here, so our next header at
+    //    p+2 actually needs to be at 0
+
     //Number of Components in scan  1 byte        This must be >= 1 and <=4 (otherwise error), usually 1 or 3
     sos.ncomponents = data.charCodeAt(p+2);
-    sos.ncomponentsstr=getSOSComponentsStr(sos.ncomponentsstr);
+    sos.ncomponentsstr=getSOSComponentsStr(sos.ncomponents);
     p+=3;//advance to beginning of component section [this was p=0 so this could just be p=3]
 
 
@@ -71,10 +74,20 @@ function processSOS(data){
     p+=3;//advance to data after fields
     
     
-    sos.hcdata=data.substring(p);
+    sos.hcdata=data.substring(p);//blank because we didn't scan yet - see postprocess
+    
     
     
     return sos;
+}
+
+function postprocessSOS(header){
+    var prefix_length = 1;//ncomponents field
+    var components_length = 2*(header.extendeddata.ncomponents); //each component data
+    var suffix_length = 3;//extra sos data fields after components
     
+    var sos_header_length = prefix_length +  components_length + suffix_length;
     
+    header.extendeddata.hcdata=header.content.substring(sos_header_length);
+    return header.extendeddata;
 }

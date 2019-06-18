@@ -79,7 +79,7 @@ function getPreviewEXIF(parent){
     image.onload = function() {
         EXIF.getData(image, function() {
 			 var allMetaData = EXIF.getAllTags(this);
-			 console.log(allMetaData)
+			 //console.log(allMetaData)
 			addPreviewEXIF(g_ExifParent,allMetaData);
             //alert(EXIF.pretty(this));
         });
@@ -139,7 +139,7 @@ function ieDownloadData(data,filename){
 }
 function getDataBlob(data){
     var buf = stobuf(data);
-    console.log(buf)
+    //console.log(buf)
     //data=decodeURIComponent(escape(data));
     //data=unescape(encodeURIComponent(data));
     return new Blob([buf], {type: 'application/octet-stream;charset=utf-8;'});//TODO: IE is messing up file encoding!
@@ -233,8 +233,8 @@ function displayJFIFInfo(jfif){
 function displayEXIFInfo(exif){
 	var html="<ul>"
 	for(prop in exif){
-		console.log(prop)
-		console.log(typeof exif[prop])
+		//console.log(prop)
+		//console.log(typeof exif[prop])
 		if(exif[prop] !== null && typeof exif[prop] === 'object' && !(exif[prop] instanceof Number || exif[prop] instanceof Array)){
 			console.log(Object.keys(exif[prop]).length)
 			console.log(exif[prop])
@@ -250,8 +250,8 @@ function displayEXIFInfo(exif){
 		}else{
 			html+=displayDetailPre(prop,exif[prop])+"</ul><br><ul>"
 		}
-		console.log(exif[prop])
-		console.log(" ")
+		//console.log(exif[prop])
+		//console.log(" ")
 	}
 	return html+"</ul>";
 }
@@ -277,7 +277,6 @@ function displaySOF0ComponentInfo(comp){
 function displayScanInfo(sos){
     //var sos = {scanlen:0, ncomponents:0, ncomponentsstr:"", components:[], sss:0, ess:0, sabp:0, hcdata:""};
     var html="<ul>"+
-    displayDetail("Scan length",sos.scanlen)+
     displayDetail("Components",sos.ncomponentsstr)+
     displayDetail("Start of Spectral/Predictive Selection",sos.sss)+
     displayDetail("End of Spectral Selection",sos.ess)+
@@ -301,10 +300,11 @@ function displayResults(info){
 		var headerinfo=displayHeaderInfo(header);
 		var elHeader = accordion_create(header.desc.shortname+" - "+header.desc.longname,headerinfo);
 		//console.log(header.hasextendeddata && header.extendedtype==="JFIF")
+                
 		if(header.hasextendeddata && header.extendedtype==="EXIF"){
 			getPreviewEXIF(elHeader);
 		}
-                else if(header.hasextendeddata && header.extendeddata==="Scan"){
+                else if(header.hasextendeddata && header.extendedtype==="Scan"){
                     var scaninfo = displayScanInfo(header.extendeddata);
                     var elScan = accordion_create(header.extendedtype+" Information",scaninfo);
                     if(header.extendeddata.components.length>0){

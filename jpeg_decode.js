@@ -27,8 +27,13 @@ function processJPEG(data){
 				if(prevheader.haslenbytes){
 					prevheader.contentlen-=2;//if we scanned in the data and the header has no length bytes, don't subtract them!
 				}
-				prevheader.content=data.substr(prevheader.contentp,prevheader.contentlen)
+				prevheader.content=data.substr(prevheader.contentp,prevheader.contentlen);
 				if(prevheader.actuallen==0) prevheader.contentlen=0
+                                
+                                if(prevheader.type=="da"){//postprocess scan header
+                                    prevheader.extendeddata = postprocessSOS(prevheader);
+                                }
+                                
 			}
 			//console.log(p+" "+prevheader.p+" "+prevheader.actuallen)
 		}
@@ -66,6 +71,7 @@ function processJPEG(data){
 	console.log(info)
 	return info;
 }
+
 
 function scanJPEGEnd(data,ps){
 	for(p=ps;p<data.length;p++){
