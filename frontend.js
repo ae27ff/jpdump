@@ -307,7 +307,7 @@ function displayResults(info){
                 else if(header.hasextendeddata && header.extendeddata==="Scan"){
                     var scaninfo = displayScanInfo(header.extendeddata);
                     var elScan = accordion_create(header.extendedtype+" Information",scaninfo);
-			if(header.extendeddata.components.length>0){
+                    if(header.extendeddata.components.length>0){
                         for(var j=0;j<header.extendeddata.components.length;j++){
                                 //console.log(j)
                                 //console.log(header.extendeddata.components[j])
@@ -316,6 +316,7 @@ function displayResults(info){
                                 var elComponent=accordion_create(comp.idstr+' Component',displayScanComponentInfo(comp));
                                 elScan.children[1].appendChild(elComponent);
                         }
+                    }
                     elHeader.children[1].appendChild(elScan);
                 }
 		else if(header.hasextendeddata && header.extendedtype==="JFIF"){
