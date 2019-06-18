@@ -281,7 +281,7 @@ function displayScanInfo(sos){
     displayDetail("Start of Spectral/Predictive Selection",sos.sss)+
     displayDetail("End of Spectral Selection",sos.ess)+
     displayDetail("Successive Approximate Bit Positions",sos.sabp)+"</ul><br><ul>"+
-    displayDetail("Huffman-coded data",getContentURL(sos.hcdata))+""
+    displayDetail("Huffman-coded data (destuffed)",getContentURL(sos.hcdata))+""
     //html+="</ul><br><ul>"+
     return html+"</ul>";
 }
@@ -369,7 +369,9 @@ function dataOverlayStub(data_b64){
 function showDataOverlay(data){
 	var el = document.getElementById('data-overlay');
 	var el_text = document.getElementById('data-overlay-content');
+        var el_len = document.getElementById('data-overlay-length');
 	el_text.value = data;
+        el_len.innerHTML = data.length;
 	el.style.display="block";
 }
 function hideDataOverlay(){

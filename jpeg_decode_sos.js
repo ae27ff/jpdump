@@ -80,6 +80,24 @@ function processSOS(data){
     return sos;
 }
 
+
+function unstuffSOSHCData(data){
+    var c = 0;
+    var c2 = 0;
+    var data_unstuffed = "";
+    for(var i=0;i<data.length;i++){
+        c = data.charCodeAt(i);
+        c2 = data.charCodeAt(i+1);
+        console.log(c.toString(16)+" "+c2.toString(16));
+        if(c===0xFF && c2===0x00){
+            i+=1;//skip the next null
+        }
+        data_unstuffed += data.charAt(i);
+    }
+    return data_unstuffed;
+}
+
+
 function postprocessSOS(header){
     var prefix_length = 1;//ncomponents field
     var components_length = 2*(header.extendeddata.ncomponents); //each component data
@@ -88,5 +106,12 @@ function postprocessSOS(header){
     var sos_header_length = prefix_length +  components_length + suffix_length;
     
     header.extendeddata.hcdata=header.content.substring(sos_header_length);
+    
+    //If the huffman coding scheme needed to write a 0xFF byte, then it writes a 0xFF followed by a 0x00 -- a process known as adding a stuff byte.
+    //https://www.impulseadventure.com/photo/jpeg-huffman-coding.html
+    header.extendeddata.hcdata = unstuffSOSHCData(header.extendeddata.hcdata);
+    
+    
+    
     return header.extendeddata;
 }
