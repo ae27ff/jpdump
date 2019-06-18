@@ -21,14 +21,24 @@ function getSOSComponentId(id){
 	return ids[id];
 }
 
+function getSOSComponentsStr(ncomponents){
+	if(compstr>4) return ncomponents+" (Unknown colorspace)"
+	var types=["","grayscale","","Color YcbCr or YIQ","Color CMYK"]
+	var compstr=ncomponents+" ("+types[ncomponents]+")"
+	if(compstr==="") compstr=ncomponents+" (Unknown colorspace)"
+	return compstr
+}
+
+//TODO: detect extraneous scan data (beyond scan length)?
 function processSOS(data){
-    var sos = {scanlen:0, ncomponents:0, components:[], sss:0, ess:0, sabp:0, hcdata:""};
+    var sos = {scanlen:0, ncomponents:0, ncomponentsstr:"", components:[], sss:0, ess:0, sabp:0, hcdata:""};
     var p=0;
     //thanks to DCube Software Technologies for overview: http://vip.sugovica.hu/Sardi/kepnezo/JPEG%20File%20Layout%20and%20Format.htm
     //Length                        2 bytes      This must be equal to 6+2*(number of components in scan).
     sos.scanlen = hexdec( get2bytes(data,p));
     //Number of Components in scan  1 byte        This must be >= 1 and <=4 (otherwise error), usually 1 or 3
     sos.ncomponents = data.charCodeAt(p+2);
+    sos.ncomponentsstr=getSOSComponentsStr(sos.ncomponentsstr);
     p+=3;//advance to beginning of component section [this was p=0 so this could just be p=3]
 
 

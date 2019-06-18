@@ -274,6 +274,22 @@ function displaySOF0ComponentInfo(comp){
 	//html+="</ul><br><ul>"+
 	return html+"</ul>";
 }
+function displayScanInfo(sos){
+    //var sos = {scanlen:0, ncomponents:0, ncomponentsstr:"", components:[], sss:0, ess:0, sabp:0, hcdata:""};
+    var html="<ul>"+
+    displayDetail("Scan length",sos.scanlen)+
+    displayDetail("Components",sos.ncomponentsstr)+
+    displayDetail("Start of Spectral/Predictive Selection",sos.sss)+
+    displayDetail("End of Spectral Selection",sos.ess)+
+    displayDetail("Successive Approximate Bit Positions",sos.sabp)+
+    displayDetail("Huffman-coded data",getContentURL(sos.hcdata))+""
+    //html+="</ul><br><ul>"+
+    return html+"</ul>";
+}
+function displayScanComponentInfo(component){
+    //var component={id:0,idstr:"",actn:0,dctn:0};
+}
+
 
 function displayResults(info){
 	var elImage=document.getElementById('image')
@@ -288,6 +304,20 @@ function displayResults(info){
 		if(header.hasextendeddata && header.extendedtype==="EXIF"){
 			getPreviewEXIF(elHeader);
 		}
+                else if(header.hasextendeddata && header.extendeddata==="Scan"){
+                    var scaninfo = displayScanInfo(header.extendeddata);
+                    var elScan = accordion_create(header.extendedtype+" Information",scaninfo);
+			if(header.extendeddata.components.length>0){
+                        for(var j=0;j<header.extendeddata.components.length;j++){
+                                //console.log(j)
+                                //console.log(header.extendeddata.components[j])
+                                //console.log(header.extendeddata.components)
+                                var comp=header.extendeddata.components[j];
+                                var elComponent=accordion_create(comp.idstr+' Component',displayScanComponentInfo(comp));
+                                elScan.children[1].appendChild(elComponent);
+                        }
+                    elHeader.children[1].appendChild(elScan);
+                }
 		else if(header.hasextendeddata && header.extendedtype==="JFIF"){
 			var jfifInfo=displayJFIFInfo(header.extendeddata);
 			var elJFIF = accordion_create(header.extendedtype+" Information",jfifInfo);
@@ -297,7 +327,7 @@ function displayResults(info){
 			var extInfo=displaySOF0Info(header.extendeddata);
 			var elExtended = accordion_create(header.extendedtype+" Information",extInfo);
 			if(header.extendeddata.components.length>0){
-				for(j=0;j<header.extendeddata.components.length;j++){
+				for(var j=0;j<header.extendeddata.components.length;j++){
 					//console.log(j)
 					//console.log(header.extendeddata.components[j])
 					//console.log(header.extendeddata.components)
