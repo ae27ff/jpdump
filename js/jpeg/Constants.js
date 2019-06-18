@@ -1,0 +1,5 @@
+var Jfif={
+    HEADER_SIZE: 2,
+    LENGTH_BYTES_SIZE: 2,
+    MARKER_PREFIX: 0xFF
+};
