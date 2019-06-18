@@ -277,16 +277,22 @@ function displaySOF0ComponentInfo(comp){
 function displayScanInfo(sos){
     //var sos = {scanlen:0, ncomponents:0, ncomponentsstr:"", components:[], sss:0, ess:0, sabp:0, hcdata:""};
     var html="<ul>"+
-    displayDetail("Components",sos.ncomponentsstr)+
+    displayDetail("Components",sos.ncomponentsstr)+"</ul><br><ul>"+
     displayDetail("Start of Spectral/Predictive Selection",sos.sss)+
     displayDetail("End of Spectral Selection",sos.ess)+
-    displayDetail("Successive Approximate Bit Positions",sos.sabp)+
+    displayDetail("Successive Approximate Bit Positions",sos.sabp)+"</ul><br><ul>"+
     displayDetail("Huffman-coded data",getContentURL(sos.hcdata))+""
     //html+="</ul><br><ul>"+
     return html+"</ul>";
 }
-function displayScanComponentInfo(component){
+function displayScanComponentInfo(comp){
     //var component={id:0,idstr:"",actn:0,dctn:0};
+    var html="<ul>"+
+    displayDetail("Component Id",comp.idstr)+
+    displayDetail("AC Table #",comp.actn)+
+    displayDetail("DC Table #",comp.dctn)+""
+    //html+="</ul><br><ul>"+
+    return html+"</ul>";
 }
 
 
