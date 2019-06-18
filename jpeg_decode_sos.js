@@ -29,7 +29,6 @@ function getSOSComponentsStr(ncomponents){
 	return compstr
 }
 
-//TODO: detect extraneous scan data (beyond scan length)?
 function processSOS(data){
     var sos = {ncomponents:0, ncomponentsstr:"", components:[], sss:0, ess:0, sabp:0, hcdata:""};
     var p=0;
