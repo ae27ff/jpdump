@@ -88,7 +88,7 @@ function unstuffSOSHCData(data){
     for(var i=0;i<data.length;i++){
         c = data.charCodeAt(i);
         c2 = data.charCodeAt(i+1);
-        console.log(c.toString(16)+" "+c2.toString(16));
+        //console.log(c.toString(16)+" "+c2.toString(16));
         if(c===0xFF && c2===0x00){
             i+=1;//skip the next null
         }
