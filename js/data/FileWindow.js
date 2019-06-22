@@ -43,7 +43,7 @@ class FileWindow extends DataWindow{
                     };
                     _this.reader.onabort=_this.reader.onerror;
                     _this.reader.onload = function(event){
-                        console.log("resolve "+event);
+                        //console.log("resolve "+event);
                         resolve(event.target.result);
                     };
                     //console.log('file read start');

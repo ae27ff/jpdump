@@ -18,11 +18,18 @@
 Jfif.Header = 
 class Header{
     constructor(marker){
-        this.hasLengthBytes=false;
+        this.hasLengthBytes=true;
         this.hasScannedLength=false;
         this.marker=marker;
-        this.indicatedLength=0;
-        this.adjustedLength=0;
+        this.indicatedLength=0;//length of data *after* the marker, including the length bytes themself.
+        this.adjustedLength=0;//the adjusted version of the above, adjusted for any scanned data - before adjustment, this is the same as the indicated length.
+        this.content=new Uint8Array;
+        
+    }
+    
+    setLengthless(){
+        this.hasLengthBytes=false;
+        this.setLengths(0);
     }
     
     setLengths(len){
@@ -30,16 +37,20 @@ class Header{
         this.adjustedLength=len;
     }
     
-    getHeaderSize(){
+    getHeaderSize(){//length of all non-content data
         if(this.hasLengthBytes){
             return Jfif.HEADER_SIZE + Jfif.LENGTH_BYTES_SIZE;
         }
         return Jfif.HEADER_SIZE;
     }
     
-    getContentLength(){
+    getContentLength(){//length of data [*after* any length bytes] belonging to the header
         var nonContentLen = this.hasLengthBytes ? Jfif.LENGTH_BYTES_SIZE : 0;
         return this.adjustedLength - nonContentLen;
+    }
+    
+    getTotalLength(){//length of the marker, length bytes, and content
+        return this.getHeaderSize() + this.getContentLength();
     }
     
     

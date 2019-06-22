@@ -19,57 +19,115 @@ Jfif.Decoder =
 class Decoder{
     constructor(){
         this.pos=0;
-        this.hooks={
-            peekHeader:[]
-        };
     }
+    
+    static validateSignature(marker){
+        switch(marker){
+            case Jfif.MARKERS['SOI'].id:
+            case Jfif.MARKERS['J2K-SOC'].id:
+                return true;
+        }
+        return false;
+    }
+    
     async processFile(file){
         var source = new FileWindow(file);
-        return await this.processData(source);
+        await Plugins.manager.dispatchEvent('beforeProcessFile',this,file,source);
+        var result= await this.processData(source);
+        await Plugins.manager.dispatchEvent('afterProcessFile',this,file,source,result);
         
     }
     async processData(source){
+       await  Plugins.manager.dispatchEvent('beforeProcessData',this,source);
         var result = new Jfif.DecoderResult(source);
         
-        var firstheader = await this.peekHeader(source,0);
-        console.log(firstheader);
+        this.pos=0;
+        var firstheader = await this.peekHeader(source,this.pos);
+        if(!Jfif.Decoder.validateSignature(firstheader.marker))  throw new Jfif.DecoderError("Unknown file signature: 255, "+firstheader.marker);
+        
+        var headers = [];
+        var header = null;
+        do{
+            header = await this.peekHeader(source,this.pos);
+            console.log("FF "+header.marker.toString(16));
+            var headerlen = header.getHeaderSize();
+            console.log(" "+this.pos+"+"+headerlen+" => "+(this.pos + headerlen)+" (cont)");
+            this.pos += headerlen;//advance to beginning of header content
+            var contlen = header.getContentLength();
+            header.content=await this.getData(source, this.pos, contlen);
+            await Plugins.manager.dispatchEvent('afterGetContent',this,source,this.pos,header,header.content);//give plugins a chance to read or modify the header content processing
+            
+            //console.log(header.content)
+            console.log(" "+this.pos+"+"+header.content.length+" => "+(this.pos + header.content.length)+" (next)");
+            this.pos += header.content.length;//advance to header directly after content
+            headers.push(header);
+        }while(header.marker!==Jfif.MARKERS['EOI'].id);
+        
+        var extraneous = await this.getDataPos(source, this.pos);
+        console.log(extraneous);
+        
+
+   
+        await Plugins.manager.dispatchEvent('afterProcessData',this,source,null);//TODO: result
+    }
+    
+    async getDataPos(source,pos, endpos=null){
+        if(endpos===null) endpos = source.realend;
+        if(endpos<pos) return new Uint8Array;
+        console.log(" getpos "+pos+" "+endpos+" ");
+        source.selectPos(pos,endpos);
+        var abuffer = await source.getSelectionArrayBuffer();
+        //console.log(abuffer);
+        var buffer = new Uint8Array(abuffer);
+        //console.log(buffer);
+        //console.log(" ]");
+        return buffer;
     }
     
     async getData(source,pos, length){
-        console.log(" get "+pos+" "+length)
-        source.selectPos(pos,length-1);
-        
-        
-        
-        
-        
+        if(length===0) return new Uint8Array;
+        //console.log(" get "+pos+" "+length+" [");
+        source.selectPos(pos,pos+length-1);
         var abuffer = await source.getSelectionArrayBuffer();
-        console.log(abuffer);
+        //console.log(abuffer);
         var buffer = new Uint8Array(abuffer);
-        console.log(buffer);
+        //console.log(buffer);
+        //console.log(" ]");
         return buffer;
     }
     
     async peekHeader(source,pos){
-         var buf = await this.getData(source,pos,Jfif.HEADER_SIZE + Jfif.LENGTH_BYTES_SIZE);
-         if(buf[0] !== Jfif.MARKER_PREFIX){
-             console.log(buf);
-             console.log(buf[0]);
-             console.log(buf[1]);
-             throw new Jfif.DecoderError("Attempted to decode non-JFIF data at offset "+pos);
-         }
-         var marker = buf[1];
-         var header = new Jfif.Header(marker);
-         var len = (buf[2]<<16) | buf[3]; // high byte, low byte -> 16-bit integer
+        console.log("Peek "+pos)
+        var buf = await this.getData(source,pos,Jfif.HEADER_SIZE + Jfif.LENGTH_BYTES_SIZE);
+        if(buf[0] !== Jfif.MARKER_PREFIX){
+            console.log(buf);
+            console.log(buf[0]);
+            console.log(buf[1]);
+            throw new Jfif.DecoderError("Attempted to decode non-JFIF data at offset "+pos);
+        }
+        var marker = buf[1];
+        var header = new Jfif.Header(marker);
+        var len = (buf[2]<<16) | buf[3]; // high byte, low byte -> 16-bit integer
 
-         header.setLengths(len);
+        header.setLengths(len);
 
-         return header;
+        await Plugins.manager.dispatchEvent('peekHeader',this,source,pos,header);
+        
+        console.log(" len "+header.indicatedLength + " "+header.getHeaderSize());
+
+        return header;
      }
     
 };
 
 
+
+Plugins.manager.defineEvent('beforeProcessFile');
+Plugins.manager.defineEvent('afterProcessFile');
+Plugins.manager.defineEvent('beforeProcessData');
+Plugins.manager.defineEvent('afterProcessData');
+Plugins.manager.defineEvent('afterGetContent');
+Plugins.manager.defineEvent('peekHeader');
 
 
 

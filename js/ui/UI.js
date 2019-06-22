@@ -16,7 +16,7 @@ jpdump.ui = {
     
     init:function(){
         this.fileTrigger = $("#upload");
-        console.log(this.fileTrigger)
+        console.log(this.fileTrigger);
         console.log(
             this.fileTrigger.on('change',function(e){
                 console.log(e);
