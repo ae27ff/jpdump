@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
+if(typeof Plugins==="undefined") Plugins={};//suppress IDE warning
 
 /**
  * This plugin corrects processing of headers that have no or variable length.

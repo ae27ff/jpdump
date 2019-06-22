@@ -15,10 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-Plugins={};
+if(typeof Plugins==="undefined") Plugins={};
 
 
-Plugin.EventType={
+Plugins.EventType={
     EVENT_CALLBACK:0,
     CUSTOM:1
 };

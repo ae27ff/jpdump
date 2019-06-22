@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-if(typeof jpdump==="undefined"){ jpdump={}; };
+if(typeof Plugins==="undefined") Plugins={};//suppress IDE warning
 
 Plugins.Plugin=
 class BasePlugin{
