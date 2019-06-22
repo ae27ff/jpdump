@@ -104,14 +104,16 @@ class VariableLengthHeadersPlugin extends Plugins.DecoderPlugin{
             
             //console.log("getdatapos "+oldpos+" "+(endpos-1));
             
+            Plugins.manager.dispatchEvent('beforeAdjustScannedContent',decoder,source,pos,header,event);//event, decoder, source, pos, header, parentEvent
             content=await decoder.getDataPos(source,oldpos,endpos-1);
             header.adjustedLength = content.length;
             header.content=content;
-            Plugins.manager.dispatchEvent('adjustedScannedContent',decoder,source,pos,header,event);//event, decoder, source, pos, header, parentEvent
+            Plugins.manager.dispatchEvent('afterAdjustScannedContent',decoder,source,pos,header,event);//event, decoder, source, pos, header, parentEvent
         }
     }
 }
 
-Plugins.manager.defineEvent('adjustedScannedContent');
+Plugins.manager.defineEvent('beforeAdjustScannedContent');
+Plugins.manager.defineEvent('afterAdjustScannedContent');
 Plugins.manager.registerPlugin(new VariableLengthHeadersPlugin());
 
