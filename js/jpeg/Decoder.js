@@ -55,11 +55,12 @@ class Decoder{
             this.pos += headerlen;//advance to beginning of header content
             var contlen = header.getContentLength();
             header.content=await this.getData(source, this.pos, contlen);
-            await Plugins.manager.dispatchEvent('afterGetContent',this,source,this.pos,header,header.content);//give plugins a chance to read or modify the header content processing
+            await Plugins.manager.dispatchEvent('afterHeaderContent',this,source,this.pos,header,header.content);//give plugins a chance to read or modify the header content processing
             
             //console.log(header.content)
             console.log(" "+this.pos+"+"+header.content.length+" => "+(this.pos + header.content.length)+" (next)");
             this.pos += header.content.length;//advance to header directly after content
+            await Plugins.manager.dispatchEvent('afterProcessHeader',this,source,this.pos,header);
             headers.push(header);
         }while(header.marker!==Jfif.MARKERS['EOI'].id);
         
@@ -111,7 +112,7 @@ class Decoder{
 
         header.setLengths(len);
 
-        await Plugins.manager.dispatchEvent('peekHeader',this,source,pos,header);
+        await Plugins.manager.dispatchEvent('afterHeaderRead',this,source,pos,header);
         
         console.log(" len "+header.indicatedLength + " "+header.getHeaderSize());
 
@@ -122,12 +123,13 @@ class Decoder{
 
 
 
-Plugins.manager.defineEvent('beforeProcessFile');
-Plugins.manager.defineEvent('afterProcessFile');
-Plugins.manager.defineEvent('beforeProcessData');
-Plugins.manager.defineEvent('afterProcessData');
-Plugins.manager.defineEvent('afterGetContent');
-Plugins.manager.defineEvent('peekHeader');
+Plugins.manager.defineEvent('beforeProcessFile');//before reading from filesource starts
+Plugins.manager.defineEvent('afterProcessFile');//after reading from filesource is done
+Plugins.manager.defineEvent('beforeProcessData');//before processing JPEG data from datasource
+Plugins.manager.defineEvent('afterProcessData');//after processing data from datasource finishes.
+Plugins.manager.defineEvent('afterHeaderRead');//when a header and length are read from the data (note: does not include corrections by header type) - this should be used for header length presence corrections
+Plugins.manager.defineEvent('afterHeaderContent');//after indicated header content is retrieved (note: will not include scanned data) - this should be used for content data span corrections
+Plugins.manager.defineEvent('afterProcessHeader');//after all data has been read and scamned into the header correctly - this should be used for metadata additions to the header based on the content.
 
 
 

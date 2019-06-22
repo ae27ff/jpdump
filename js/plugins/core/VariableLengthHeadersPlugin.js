@@ -28,7 +28,7 @@ class VariableLengthHeadersPlugin extends Plugins.DecoderPlugin{
         super(); 
     }
     
-    event_peekHeader(event,decoder,source,pos,header){
+    event_afterHeaderRead(event,decoder,source,pos,header){
         if(event.isCancelled) return;
         //console.log("VLH.event_peekHeader:");
         switch(header.marker){
@@ -50,6 +50,7 @@ class VariableLengthHeadersPlugin extends Plugins.DecoderPlugin{
                     header.setLengthless();
                 }
         }
+        Plugins.manager.dispatchEvent('afterHeaderLengthCorrection',decoder,source,pos,header,event);
         //console.log(header);
         //console.log(header.indicatedLength);
     }
@@ -94,7 +95,7 @@ class VariableLengthHeadersPlugin extends Plugins.DecoderPlugin{
         throw "Unexpected end of scan-data (#4)";
     }
     
-    async event_afterGetContent(event,decoder,source,pos,header,content){//note: we are positioned after the length bytes, if any
+    async event_afterHeaderContent(event,decoder,source,pos,header,content){//note: we are positioned after the length bytes, if any
         if(event.isCancelled) return;
         var oldpos = pos;
         if(header.hasScannedLength){
@@ -112,7 +113,8 @@ class VariableLengthHeadersPlugin extends Plugins.DecoderPlugin{
         }
     }
 }
-
+Plugins.manager.defineEvent('afterHeaderLengthCorrection');
+Plugins.manager.defineEvent('afterAdjustScannedContent');
 Plugins.manager.defineEvent('beforeAdjustScannedContent');
 Plugins.manager.defineEvent('afterAdjustScannedContent');
 Plugins.manager.registerPlugin(new VariableLengthHeadersPlugin());
