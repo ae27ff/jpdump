@@ -25,7 +25,7 @@ Plugins.EventType={
         
 
 Plugins.EventFlags=
-class PluginEvent{
+class PluginEventFlags{
     constructor(stage,args,cancellable){
         this.stage=stage;
         this.isCancellable=cancellable;
