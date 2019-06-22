@@ -64,7 +64,7 @@ class VariableLengthHeadersPlugin extends Plugins.DecoderPlugin{
                 if(content[i]===Jfif.MARKER_PREFIX){
                     var next = await decoder.getData(source,pos+1,1);
                     if(next.length===0) throw "Unexpected end of scan-data (#1)";
-                    if(next[0]===Jfif.MARKER['J2K-EOC']){//same as EOI: FF D9
+                    if(next[0]===Jfif.MARKERS['J2K-EOC'].id){//same as EOI: FF D9
                         console.log("   FF "+next[0].toString(16)+" found at "+pos+"~"+i);
                         return pos;
                     }  

@@ -7,6 +7,9 @@ var Jfif={
 
 
 (function(){
+    function getIntlName(shortname){
+        return "JFIF_MARKER_"+shortname.replaceAll("[^0-9a-zA-Z_]+","_");
+    }
     function header_define(id,shortname,longname,uses){
         var info = {id:id, shortname:shortname,longname:longname,uses:uses};
         Jfif.MARKERS[id]=info;
@@ -20,7 +23,8 @@ var Jfif={
             header_define(id,shortname,longname,uses);
         }
     }
-
+    
+    header_define(0x00,"STUFF?","Stuffed FF?","Encodes embedded FF's inside content");
     header_define(0x4f,"J2K-SOC","Start of Codestream","JPEG2000 Signature");
     header_define(0x90,"J2K-SOT","Start of Tile-part","");
     header_define(0x93,"J2K-SOD","Start of Data","");
@@ -58,7 +62,7 @@ var Jfif={
     header_define(0xdf,"EXP","Expand Reference Component","");
 
     header_define(0xe0,"APP0","Application Segment 0","JFIF Header,JFIF Extensions,Motion JPEG");
-    header_define(0xe1,"APP0","Application Segment 1","EXIF,TIFF-IFD,Adobe XMP");
+    header_define(0xe1,"APP1","Application Segment 1","EXIF,TIFF-IFD,Adobe XMP");
     header_define(0xe2,"APP2","Application Segment 2","Color Profile,FlashPix");
     header_define(0xe3,"APP3","Application Segment 3","JPS-Stereoscopic JPEG");
     header_defineN(0xe4,0xe5,0xe0,"APP%N%","Application Segment %N%","");
@@ -77,4 +81,12 @@ var Jfif={
     header_define(0xfe,"COM","Comment","");
     
     Jfif.MARKERS['J2K-EOC'] = Jfif.MARKERS['EOI'];
+    
+    var out = "";
+    for(var marker of Jfif.MARKERS){
+        if(typeof marker==="undefined") continue;
+        out+=('"'+getIntlName(marker.shortname)+'": "'+marker.longname+'"')+",\n";
+    }
+    console.log(out);
+    
 })();
