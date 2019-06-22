@@ -10,6 +10,9 @@ var Jfif={
     function getIntlName(shortname){
         return "JFIF_MARKER_"+shortname.replaceAll("[^0-9a-zA-Z_]+","_");
     }
+    function getIntlUses(shortname){
+        return "JFIF_MARKER_USES_"+shortname.replaceAll("[^0-9a-zA-Z_]+","_");
+    }
     function header_define(id,shortname,longname,uses){
         var info = {id:id, shortname:shortname,longname:longname,uses:uses};
         Jfif.MARKERS[id]=info;
@@ -24,7 +27,7 @@ var Jfif={
         }
     }
     
-    header_define(0x00,"STUFF?","Stuffed FF?","Encodes embedded FF's inside content");
+    header_define(0x00,"STUFF","Stuffed FF?","Encodes embedded FF's inside content");
     header_define(0x4f,"J2K-SOC","Start of Codestream","JPEG2000 Signature");
     header_define(0x90,"J2K-SOT","Start of Tile-part","");
     header_define(0x93,"J2K-SOD","Start of Data","");
@@ -85,7 +88,7 @@ var Jfif={
     var out = "";
     for(var marker of Jfif.MARKERS){
         if(typeof marker==="undefined") continue;
-        out+=('"'+getIntlName(marker.shortname)+'": "'+marker.longname+'"')+",\n";
+        out+=('"'+getIntlUses(marker.shortname)+'": "'+marker.uses+'"')+",\n";
     }
     console.log(out);
     
