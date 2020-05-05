@@ -39,7 +39,7 @@ function getSOF0SamplingFactor(samp){
 	//vertical horizontal
 	//0 1 2 3  4 5 6 7
 	var sf={v:0,h:0}
-	sf.v=(samp&0xF0)>>4;
-	sf.h= samp&0x0F
+	sf.h=(samp&0xF0)>>4;//Sampling factors (1byte) (bit 0-3 vertical., 4-7 horizontal.),
+	sf.v= samp&0x0F;
 	return samp+" ("+sf.v+" Vertical, "+sf.h+" Horizontal)"
 }
