@@ -25,31 +25,63 @@ function xmpJPEG(packet) {
     ])));
 }
 
-function xmlDocument(name, text, attributes = []) {
-    const root = { nodeName: name, localName: name.split(':').pop(), textContent: text, attributes };
-    return {
-        documentElement: root,
-        children: { length: 1, item: () => root },
-        getElementsByTagName: tag => tag === name ? [root] : []
+function domNode(model) {
+    const node = { ...model, localName: model.nodeName.split(':').pop() };
+    node.attributes = model.attributes || [];
+    node.childNodes = (model.childNodes || []).map(domNode);
+    const relink = () => {
+        node.firstChild = node.childNodes[0] || null;
+        node.childNodes.forEach((child, i) => { child.nextSibling = node.childNodes[i + 1] || null; });
+        node.children = node.childNodes.filter(child => child.nodeType === 1);
+        Object.defineProperty(node.children, 'item', { value: index => node.children[index] });
     };
+    relink();
+    node.normalize = () => {
+        for (let i = node.childNodes.length - 1; i > 0; i--) {
+            const previous = node.childNodes[i - 1], current = node.childNodes[i];
+            if (previous.nodeType === 3 && current.nodeType === 3) {
+                previous.nodeValue += current.nodeValue;
+                node.childNodes.splice(i, 1);
+            }
+        }
+        node.childNodes.forEach(child => child.normalize());
+        relink();
+    };
+    node.removeChild = child => {
+        node.childNodes.splice(node.childNodes.indexOf(child), 1);
+        relink();
+    };
+    node.getElementsByTagName = name => node.childNodes.flatMap(child => [
+        ...(child.nodeType === 1 && child.nodeName === name ? [child] : []), ...child.getElementsByTagName(name)
+    ]);
+    if (node.nodeType === 9) node.documentElement = node.children[0];
+    return node;
 }
 
 // Node has no DOMParser. On Windows, validate XML with the OS's .NET parser,
-// then expose the small DOM surface needed by EXIF's XML conversion.
+// then expose the DOM surface used by the actual XML-to-JSON converter.
 class NativeDOMParser {
     parseFromString(xml) {
         const script = `
             [Console]::InputEncoding = [System.Text.Encoding]::UTF8
             [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+            function Export-XmlNode([System.Xml.XmlNode]$xmlNode) {
+                @{
+                    nodeType = [int]$xmlNode.NodeType
+                    nodeName = $xmlNode.Name
+                    nodeValue = $xmlNode.Value
+                    textContent = $xmlNode.InnerText
+                    innerHTML = $xmlNode.InnerXml
+                    attributes = @($xmlNode.Attributes | ForEach-Object { @{ nodeName = $_.Name; nodeValue = $_.Value } })
+                    childNodes = @($xmlNode.ChildNodes | ForEach-Object { Export-XmlNode $_ })
+                }
+            }
             try {
                 $document = [System.Xml.XmlDocument]::new()
                 $document.LoadXml([Console]::In.ReadToEnd())
-                $attributes = @($document.DocumentElement.Attributes | ForEach-Object {
-                    @{ nodeName = $_.Name; nodeValue = $_.Value }
-                })
-                @{ name = $document.DocumentElement.Name; text = $document.DocumentElement.InnerText; attributes = $attributes } | ConvertTo-Json -Depth 5 -Compress
+                Export-XmlNode $document | ConvertTo-Json -Depth 100 -Compress
             } catch {
-                @{ name = 'parsererror'; text = $_.Exception.Message; attributes = @() } | ConvertTo-Json -Compress
+                @{ nodeType = 9; nodeName = '#document'; childNodes = @(@{ nodeType = 1; nodeName = 'parsererror'; textContent = $_.Exception.Message }) } | ConvertTo-Json -Depth 5 -Compress
             }
         `;
         const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
@@ -58,23 +90,24 @@ class NativeDOMParser {
         if (result.error) throw result.error;
         if (result.status !== 0) throw new Error(result.stderr);
         const parsed = JSON.parse(result.stdout.replace(/^\uFEFF/, ''));
-        return xmlDocument(parsed.name, parsed.text, parsed.attributes);
+        return domNode(parsed);
     }
 }
 
-function loadEXIF(overrides = {}) {
+function loadEXIF(overrides = {}, realConverter = false) {
     const context = vm.createContext({
         atob, console,
         xml2json: node => JSON.stringify({ text: node.textContent }),
         ...overrides
     });
     context.self = context;
+    if (realConverter) vm.runInContext(fs.readFileSync(path.join(projectRoot, 'xml2json.min.js'), 'utf8'), context);
     vm.runInContext(fs.readFileSync(path.join(projectRoot, 'exif.js'), 'utf8'), context);
     return context;
 }
 
-function readMetadata(bytes, overrides = {}) {
-    const context = loadEXIF(overrides);
+function readMetadata(bytes, overrides = {}, realConverter = false) {
+    const context = loadEXIF(overrides, realConverter);
     const image = { src: 'data:image/jpeg;base64,' + bytes.toString('base64') };
     let called = false;
     context.EXIF.getData(image, () => { called = true; });
