@@ -36,6 +36,17 @@ function iptcResource(data) {
     ]);
 }
 
+test('Truncated IPTC resources retain earlier complete datasets and tolerate missing final padding', () => {
+    const full=iptcSegment(dataset(2,120,'OK'),dataset(2,25,'unfinished'));
+    const partial=full.subarray(0,-5);
+    const bytes=Buffer.concat([Buffer.from([255,216]),partial]);
+    assert.equal(readMetadata(bytes).iptcdata.caption,'OK');
+    assert.equal(readMetadata(bytes).iptcdata.keywords,undefined);
+    const padded=iptcSegment(dataset(2,120,'OK'));
+    const missingPadding=Buffer.concat([Buffer.from([255,216]),padded.subarray(0,-1)]);
+    assert.equal(readMetadata(missingPadding).iptcdata.caption,'OK');
+});
+
 test('IPTC ignores record signatures inside a binary JPEG preview', () => {
     const preview = jpeg(segment(0xfe, dataset(2, 25, 'FAKE')));
     const data = readIPTC(
