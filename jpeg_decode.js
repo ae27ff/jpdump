@@ -233,6 +233,7 @@ function processHeader(data,p){
 		header.hasextendeddata=true;
 		header.extendedtype="JFIF";
 		header.extendeddata=processJFIF(header.content);
+		if(!header.extendeddata.valid) header.valid=false;
 	}
 
 	if(header.type=="e1" && isEXIF(header.content)){
