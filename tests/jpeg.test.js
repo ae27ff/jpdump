@@ -32,3 +32,32 @@ test('Parsing does not log binary image data or retain header objects in the con
     assert.equal(result.valid, true);
     assert.deepEqual(logged, []);
 });
+
+test('Truncated Adobe APP14 headers are invalid without fabricated numeric fields', () => {
+    for (let length = 5; length < 12; length++) {
+        const payload = Buffer.alloc(length);
+        payload.write('Adobe');
+        const result = parseJPEG(jpeg(segment(0xee, payload)));
+        assert.equal(result.valid, false);
+        const header = result.headers.find(header => header.type === 'ee');
+        assert.equal(header.valid, false);
+        assert.equal(header.hasextendeddata, false);
+    }
+});
+
+test('Complete Adobe APP14 metadata and unknown application payloads still parse', () => {
+    const payload = Buffer.alloc(12);
+    payload.write('Adobe');
+    payload.writeUInt16BE(100, 5);
+    payload.writeUInt16BE(1, 7);
+    payload.writeUInt16BE(2, 9);
+    payload[11] = 2;
+    const result = parseJPEG(jpeg(segment(0xee, payload)));
+    assert.equal(result.valid, true);
+    const adobe = result.headers.find(header => header.type === 'ee').extendeddata;
+    assert.equal(adobe.DCTEncodeVersion, 100);
+    assert.equal(adobe.flags0, 1);
+    assert.equal(adobe.flags1, 2);
+    assert.equal(adobe.colorTransform, '2 (YCCK)');
+    assert.equal(parseJPEG(jpeg(segment(0xee, Buffer.from('other')))).valid, true);
+});

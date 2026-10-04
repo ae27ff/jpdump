@@ -2,6 +2,7 @@
 function processAPP14(data){
 	var app14={valid:false,type:"",info:null};
 	if(isAPP14Adobe(data)){
+		if (data.length < 12) return app14;
 		app14.valid=true;
 		app14.type="Adobe";
 		app14.info=processAPP14Adobe(data);

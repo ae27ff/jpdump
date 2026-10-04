@@ -215,6 +215,10 @@ function processHeader(data,p){
 	}
 	if(header.type=='ee'){
 		var app14=processAPP14(header.content);
+		if (isAPP14Adobe(header.content) && !app14.valid) {
+			header.valid=false;
+			return header;
+		}
 		if(app14.valid){
 			header.hasextendeddata=true;
 			header.extendedtype=app14.type;
