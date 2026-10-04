@@ -95,10 +95,11 @@ function findMarkerStart(data,ps){
 function scanJPEGEnd(data,ps){
 	for(var p=ps;p<data.length;p=findMarkerStart(data,p+1)){
 		if(p>=data.length) return data.length;
+		if(data.charCodeAt(p)!==0xff) continue;
 		var codep=p+1;
 		while(codep<data.length && data.charCodeAt(codep)===0xff) codep++;
 		var marker=data.charCodeAt(codep);
-		if(marker===0xd9) return p;
+		if(marker===0xd9 || marker===0x90) return p;
 	}
 	return data.length
 }
