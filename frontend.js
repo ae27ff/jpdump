@@ -205,6 +205,9 @@ function displayDetail(name,value){
 }
 function displayHeaderInfo(header){
 	var html="<ul>"+
+	(header.truncated ? displayDetail('Status','<span class="warning">Truncated; available bytes shown</span>') :
+	 !header.valid ? displayDetail('Status','<span class="warning">Invalid structure; available bytes shown</span>') :
+	 header.recovered ? displayDetail('Status','<span class="warning">Recovered; sequence unverified</span>') : '')+
 	displayDetail("Marker ID",header.magic+header.type)+
 	displayDetail("Offset",header.p)+
 	displayDetail("Len",header.len)+
@@ -224,13 +227,14 @@ function displayImageInfo(info){
 	var html="<ul>"+
 	displayDetail("Filesize",info.filesize)+
 	displayDetail("Datasize",info.nextp)+
-	displayDetail("JPEG Structure",info.valid ? "Valid" : '<span class="warning">Invalid</span>')+
+	displayDetail("JPEG Structure",info.valid ? "Valid" : '<span class="warning">Invalid or incomplete; recovered data shown</span>')+
 	displayDetail("Resolution",info.dimensions ? info.dimensions.width+'x'+info.dimensions.height : getPreviewDims());
+	for(var index=0;index<(info.warnings || []).length;index++) html+=displayDetailPre('Warning',info.warnings[index]);
 
 	if(info.hasextraneous){
 		html+="</ul><br><ul>"+
-		displayDetail("Extraneous Data Exists",'<span class="warning">YES</span>')+
-		displayDetail("Extraneous Data",getContentURL(info.extraneous));
+		displayDetail(info.unparsed ? 'Unparsed Data Exists' : "Extraneous Data Exists",'<span class="warning">YES</span>')+
+		displayDetail(info.unparsed ? 'Unparsed Data' : "Extraneous Data",getContentURL(info.extraneous));
 	}
 	return html+"</ul>";
 }
