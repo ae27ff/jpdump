@@ -1,17 +1,16 @@
+function accordion_toggle(){
+	this.classList.toggle("active");
+	var panel=this.nextElementSibling;
+	// Natural height keeps expanded descendants and wrapped text visible.
+	panel.style.maxHeight=panel.style.maxHeight ? '' : 'none';
+}
+
 function accordion_prepare(){
 	var acc = document.getElementsByClassName("accordion");
 	var i;
 
 	for (i = 0; i < acc.length; i++) {
-	  acc[i].onclick = function() {
-		this.classList.toggle("active");
-		var panel = this.nextElementSibling;
-		if (panel.style.maxHeight){
-		  panel.style.maxHeight = null;
-		} else {
-		  panel.style.maxHeight = panel.scrollHeight + "px";
-		}
-	  }
+	  acc[i].onclick = accordion_toggle;
 	}
 }
 
@@ -24,15 +23,7 @@ function accordion_create(header,body){
 	elHead.type='button';
 	elHead.textContent=header;
 
-	elHead.onclick = function() {
-		this.classList.toggle("active");
-		var panel = this.nextElementSibling;
-		if (panel.style.maxHeight){
-		  panel.style.maxHeight = null;
-		} else {
-		  panel.style.maxHeight = (panel.scrollHeight*2+3000) + "px";
-		}
-	}
+	elHead.onclick = accordion_toggle;
 	var elBody=document.createElement('div');
 	elBody.classList.add('panel')
 	if(Array.isArray(body)){
