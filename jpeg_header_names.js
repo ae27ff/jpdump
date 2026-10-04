@@ -54,7 +54,7 @@ function jpeg_headerdump_name(header){
 	out=jpeg_headerdump_name_repl("df",["EXP","Expand Reference Component",""],header,out);
 
 	out=jpeg_headerdump_name_repl("e0",["APP0","Application Segment 0","JFIF Header,JFIF Extensions,Motion JPEG"],header,out);
-	out=jpeg_headerdump_name_repl("e1",["APP0","Application Segment 1","EXIF,TIFF-IFD,Adobe XMP"],header,out);
+	out=jpeg_headerdump_name_repl("e1",["APP1","Application Segment 1","EXIF,TIFF-IFD,Adobe XMP"],header,out);
 	out=jpeg_headerdump_name_repl("e2",["APP2","Application Segment 2","Color Profile,FlashPix"],header,out);
 	out=jpeg_headerdump_name_repl("e3",["APP3","Application Segment 3","JPS-Stereoscopic JPEG"],header,out);
 	out=jpeg_headerdump_name_replN(0xe4,0xe5,0xe0,["APP%N%","Application Segment %N%",""],header,out);

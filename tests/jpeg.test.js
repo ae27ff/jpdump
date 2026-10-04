@@ -20,3 +20,8 @@ test('The parsed size and trailer boundary of a valid JPEG are unchanged', () =>
     assert.equal(result.nextp, bytes.length);
     assert.equal(result.extraneous, 'trailer');
 });
+
+test('APP1 metadata has the correct application marker label', () => {
+    const result = parseJPEG(jpeg(segment(0xe1, Buffer.from('metadata'))));
+    assert.equal(result.headers.find(header => header.type === 'e1').desc.shortname, 'APP1');
+});
