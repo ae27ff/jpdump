@@ -41,3 +41,22 @@ xmlTest('Comments and processing instructions produce no fake metadata or alerts
     }
     assert.deepEqual(alerts, []);
 });
+
+xmlTest('Element names matching Object properties survive XMP conversion', () => {
+    const context=loadEXIF();
+    const xml='<root><__proto__>proto</__proto__><constructor>ctor</constructor><toString>text</toString></root>';
+    const json=JSON.parse(context.xml2json(new NativeDOMParser().parseFromString(xml)));
+    assert.equal(json.root.__proto__,'proto');
+    assert.equal(json.root.constructor,'ctor');
+    assert.equal(json.root.toString,'text');
+});
+
+xmlTest('Whitespace-only literals and inherited xml:space are preserved', () => {
+    const context=loadEXIF();
+    const literal=JSON.parse(context.xml2json(new NativeDOMParser().parseFromString('<root><value> \t </value></root>')));
+    assert.equal(literal.root.value,' \t ');
+    const preserved=JSON.parse(context.xml2json(new NativeDOMParser().parseFromString('<root xml:space="preserve"> <a>A</a> <b>B</b> </root>')));
+    assert.equal(preserved.root[0],' ');
+    assert.equal(preserved.root[2],' ');
+    assert.equal(preserved.root[4],' ');
+});
