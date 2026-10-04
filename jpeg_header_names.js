@@ -5,8 +5,8 @@ function jpeg_headerdump_name_repl(hex,desc,test,original){
 }
 function jpeg_headerdump_name_replN(min,max,diff,desc,test,original){
 //console.log(original)
-	for(n=min;n<=max;n++){
-		intermediate=jpeg_headerdump_name_repl(dechex2x(n),desc,test,original);
+	for(var n=min;n<=max;n++){
+		var intermediate=jpeg_headerdump_name_repl(dechex2x(n),desc,test,original);
 		//console.log(intermediate)
 		intermediate.shortname=intermediate.shortname.replace("%N%",n-diff);
 		intermediate.longname=intermediate.longname.replace("%N%",n-diff);
@@ -15,7 +15,7 @@ function jpeg_headerdump_name_replN(min,max,diff,desc,test,original){
 	return original;
 }
 function jpeg_headerdump_name(header){
-	out={shortname:"",longname:"Unknown",uses:""};
+	var out={shortname:"",longname:"Unknown",uses:""};
 
 	out=jpeg_headerdump_name_repl("4f",["J2K-SOC","Start of Codestream","JPEG2000 Signature"],header,out);
 	out=jpeg_headerdump_name_repl("90",["J2K-SOT","Start of Tile-part",""],header,out);
@@ -26,7 +26,7 @@ function jpeg_headerdump_name(header){
 	out=jpeg_headerdump_name_repl("5e",["J2K-RGN","Region of Interest",""],header,out);
 	out=jpeg_headerdump_name_repl("5c",["J2K-QCD","Quantization Default",""],header,out);
 	out=jpeg_headerdump_name_repl("5d",["J2K-QCC","Quantization Component",""],header,out);
-	out=jpeg_headerdump_name_repl("5f",["J2K-POD","Progression Order Default",""],header,out);
+	out=jpeg_headerdump_name_repl("5f",["J2K-POC","Progression Order Change",""],header,out);
 	out=jpeg_headerdump_name_repl("55",["J2K-TLM","Tile-part Lengths Main Header",""],header,out);
 	out=jpeg_headerdump_name_repl("57",["J2K-PLM","Packet Length Main Header",""],header,out);
 	out=jpeg_headerdump_name_repl("58",["J2K-PLT","Packet Length Tile-part Header",""],header,out);
@@ -34,7 +34,7 @@ function jpeg_headerdump_name(header){
 	out=jpeg_headerdump_name_repl("61",["J2K-PPT","Packed Packet-headers Tile-part header",""],header,out);
 	out=jpeg_headerdump_name_repl("91",["J2K-SOP","Start of Packet",""],header,out);
 	out=jpeg_headerdump_name_repl("92",["J2K-EPH","End of Packet Header",""],header,out);
-	out=jpeg_headerdump_name_repl("64",["J2K-CME","Comment and Extension",""],header,out);
+	out=jpeg_headerdump_name_repl("64",["J2K-COM","Comment",""],header,out);
 
 	out=jpeg_headerdump_name_replN(0xc0,0xc3,0xc0,["SOF%N%","Start of DCT Frame %N%",""],header,out);
 	out=jpeg_headerdump_name_repl("c4",["DHT","Huffman Table",""],header,out);
@@ -43,6 +43,10 @@ function jpeg_headerdump_name(header){
 	out=jpeg_headerdump_name_replN(0xc9,0xcb,0xc0,["SOF%N%","Start of Arithmetic-coding Frame %N%",""],header,out);
 	out=jpeg_headerdump_name_repl("cc",["DAC","Arithmetic Coding",""],header,out);
 	out=jpeg_headerdump_name_replN(0xcd,0xcf,0xc0,["SOF%N%","Start of Differential/Arithmetic Frame %N%",""],header,out);
+	out=jpeg_headerdump_name_repl("c3",["SOF3","Start of Lossless Frame",""],header,out);
+	out=jpeg_headerdump_name_repl("cb",["SOF11","Start of Lossless Arithmetic-coding Frame",""],header,out);
+	out=jpeg_headerdump_name_repl("c7",["SOF7","Start of Differential Lossless Frame",""],header,out);
+	out=jpeg_headerdump_name_repl("cf",["SOF15","Start of Differential Lossless Arithmetic-coding Frame",""],header,out);
 	out=jpeg_headerdump_name_replN(0xd0,0xd7,0xd0,["RST%N%","Restart Marker %N%",""],header,out);
 	out=jpeg_headerdump_name_repl("d8",["SOI","Start of Image",""],header,out);
 	out=jpeg_headerdump_name_repl("d9",["EOI","End of Image",""],header,out);
@@ -67,8 +71,8 @@ function jpeg_headerdump_name(header){
 	out=jpeg_headerdump_name_replN(0xee,0xef,0xe0,["APP%N%","Application Segment %N%","Adobe DCT Information"],header,out);
 
 	out=jpeg_headerdump_name_replN(0xf0,0xf6,0xf0,["JPG%N%","Extension %N%",""],header,out);
-	out=jpeg_headerdump_name_repl("f7",["JPG7/SOF48","Extension 7","JPEG-LS Lossless JPEG"],header,out);
-	out=jpeg_headerdump_name_repl("f8",["JPG8/LSE","Extension 8","JPEG-LS Parameters"],header,out);
+	out=jpeg_headerdump_name_repl("f7",["SOF (JPEG-LS)","Start of JPEG-LS Frame","JPEG-LS lossless and near-lossless coding"],header,out);
+	out=jpeg_headerdump_name_repl("f8",["LSE","JPEG-LS Parameters","Coding presets, mapping tables, oversized dimensions"],header,out);
 	out=jpeg_headerdump_name_replN(0xf9,0xfd,0xf0,["JPG%N%","Extension %N%",""],header,out);
 	out=jpeg_headerdump_name_repl("fe",["COM","Comment",""],header,out);
 	return out;
