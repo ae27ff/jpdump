@@ -857,6 +857,26 @@
         }
     }
 
+    function getUTF8StringFromDB(buffer, start, length) {
+        try {
+            var value;
+            if (typeof TextDecoder === 'function') {
+                var bytes = new Uint8Array(buffer.buffer, buffer.byteOffset + start, length);
+                value = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+            } else {
+                // decodeURIComponent supplies strict UTF-8 decoding in older browsers.
+                var encoded = '';
+                for (var index = start; index < start + length; index++) {
+                    encoded += '%' + ('0' + buffer.getUint8(index).toString(16)).slice(-2);
+                }
+                value = decodeURIComponent(encoded);
+            }
+            return value.replace(/^\uFEFF/, '');
+        } catch (error) {
+            return;
+        }
+    }
+
     function parseXMPDocument(xmpString) {
         try {
             var xml = new DOMParser().parseFromString(xmpString, 'text/xml');
@@ -913,7 +933,8 @@
         var result = findJPEGSegment(file, 0xE1, function(dataView, payloadStart, payloadLength) {
             if (payloadLength < signature.length || getStringFromDB(dataView, payloadStart, signature.length) !== signature) return;
 
-            var xmpString = getStringFromDB(dataView, payloadStart + signature.length, payloadLength - signature.length);
+            var xmpString = getUTF8StringFromDB(dataView, payloadStart + signature.length, payloadLength - signature.length);
+            if (typeof xmpString === 'undefined') return;
             var xml = parseXMPDocument(xmpString);
             if (!xml) {
                 var repaired = repairXMPNamespaces(xmpString);

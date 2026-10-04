@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const { TextDecoder } = require('node:util');
 const { NativeDOMParser, readMetadata, xmpJPEG, jpeg, segment } = require('./metadata-helpers');
 
 const xmlTest = process.platform === 'win32' ? test : test.skip;
@@ -81,3 +82,65 @@ test('A throwing XML parser does not prevent the metadata callback', () => {
     const image = readMetadata(xmpJPEG('<x:xmpmeta xmlns:x="adobe:ns:meta/"/>'), { DOMParser: ThrowingDOMParser });
     assert.deepEqual(Object.keys(image.xmpdata), []);
 });
+
+for (const [decoderName, decoder] of [['native decoder', TextDecoder], ['legacy fallback', undefined]]) {
+    xmlTest('XMP preserves UTF-8 text and attributes using the ' + decoderName, () => {
+        const title = 'café 東京 😀';
+        const xml = '<x:xmpmeta xmlns:x="adobe:ns:meta/" label="' + title + '"><title>' + title + '</title></x:xmpmeta>';
+        const image = readMetadata(xmpJPEG(xml), { DOMParser: NativeDOMParser, TextDecoder: decoder });
+        assert.equal(JSON.parse(image.xmpdata['x:xmpmeta']).text, title);
+        assert.equal(image.xmpdata.label, title);
+    });
+
+    xmlTest('XMP handles an initial UTF-8 BOM and preserves the packet BOM using the ' + decoderName, () => {
+        const xml = '<?xml version="1.0" encoding="UTF-8"?><?xpacket begin="\uFEFF"?><x:xmpmeta xmlns:x="adobe:ns:meta/"><title>日本語</title></x:xmpmeta><?xpacket end="w"?>';
+        const bytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(xml)]);
+        let parsedPacket;
+        class CapturingDOMParser extends NativeDOMParser {
+            parseFromString(packet) {
+                parsedPacket = packet;
+                return super.parseFromString(packet);
+            }
+        }
+        const image = readMetadata(xmpJPEG(bytes), { DOMParser: CapturingDOMParser, TextDecoder: decoder });
+        assert.equal(JSON.parse(image.xmpdata['x:xmpmeta']).text, '日本語');
+        assert.ok(parsedPacket.includes('begin="\uFEFF"'));
+    });
+
+    test('XMP skips malformed UTF-8 without blocking metadata using the ' + decoderName, () => {
+        const malformed = [
+            [0xc3], [0xc0, 0xaf], [0xed, 0xa0, 0x80], [0xf4, 0x90, 0x80, 0x80], [0x80]
+        ];
+        class UnexpectedDOMParser {
+            parseFromString() { assert.fail('Malformed UTF-8 reached the XML parser'); }
+        }
+        for (const bytes of malformed) {
+            const packet = Buffer.concat([
+                Buffer.from('<x:xmpmeta xmlns:x="adobe:ns:meta/"><title>'), Buffer.from(bytes),
+                Buffer.from('</title></x:xmpmeta>')
+            ]);
+            const image = readMetadata(xmpJPEG(packet), { DOMParser: UnexpectedDOMParser, TextDecoder: decoder });
+            assert.deepEqual(Object.keys(image.xmpdata), []);
+        }
+    });
+
+    xmlTest('Invalid UTF-8 in one APP1 does not hide a later packet using the ' + decoderName, () => {
+        const signature = Buffer.from('http://ns.adobe.com/xap/1.0/\0', 'ascii');
+        const valid = '<x:xmpmeta xmlns:x="adobe:ns:meta/"><title>café</title></x:xmpmeta>';
+        const image = readMetadata(jpeg(
+            segment(0xe1, Buffer.concat([signature, Buffer.from([0xc3])])),
+            segment(0xe1, Buffer.concat([signature, Buffer.from(valid)]))
+        ), { DOMParser: NativeDOMParser, TextDecoder: decoder });
+        assert.equal(JSON.parse(image.xmpdata['x:xmpmeta']).text, 'café');
+    });
+
+    xmlTest('UTF-8 decoding stays within the XMP APP1 using the ' + decoderName, () => {
+        const signature = Buffer.from('http://ns.adobe.com/xap/1.0/\0', 'ascii');
+        const valid = '<x:xmpmeta xmlns:x="adobe:ns:meta/"><title>café</title></x:xmpmeta>';
+        const image = readMetadata(jpeg(
+            segment(0xe1, Buffer.concat([signature, Buffer.from(valid)])),
+            segment(0xe1, Buffer.from([0xff, 0xc0, 0xaf]))
+        ), { DOMParser: NativeDOMParser, TextDecoder: decoder });
+        assert.equal(JSON.parse(image.xmpdata['x:xmpmeta']).text, 'café');
+    });
+}
