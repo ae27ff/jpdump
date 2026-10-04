@@ -46,7 +46,24 @@ function processJPEG(data){
 			break;
 		}
 		var nextp=header.nextp
-		if(header.type=="93") nextp=scanJPEGEnd(data,nextp);
+		if(header.type=="93"){
+			var tilePartHeader;
+			for(var h=info.headers.length-1;h>=0;h--){
+				if(info.headers[h].type==="90"){
+					tilePartHeader=info.headers[h];
+					break;
+				}
+			}
+			if(tilePartHeader && tilePartHeader.tilePartLength){
+				nextp=tilePartHeader.p+tilePartHeader.tilePartLength;
+				if(nextp<header.nextp || nextp>data.length){
+					header.valid=false;
+					nextp=data.length;
+				}
+			}else{
+				nextp=scanJPEGEnd(data,nextp);
+			}
+		}
 		if(header.type=="da") nextp=scanJPEG(data,nextp)
 		if(hexdec(header.type)>=0xd0 && hexdec(header.type)<=0xd7) nextp=scanJPEG(data,nextp)//fixed: support restart markers
 		if(info.nextp<nextp) info.nextp=nextp
@@ -100,6 +117,13 @@ function scanJPEGEnd(data,ps){
 		while(codep<data.length && data.charCodeAt(codep)===0xff) codep++;
 		var marker=data.charCodeAt(codep);
 		if(marker===0xd9 || marker===0x90) return p;
+		if(marker===0x91){
+			if(codep+2>=data.length) return data.length;
+			var sopLength=data.charCodeAt(codep+1)*256+data.charCodeAt(codep+2);
+			var sopEnd=codep+1+sopLength;
+			if(sopLength<2 || sopEnd>data.length) return data.length;
+			p=sopEnd-1;
+		}
 	}
 	return data.length
 }
@@ -172,6 +196,20 @@ function processHeader(data,p){
 	if(header.haslenbytes) header.contentlen=header.len-2
 
 	header.content=data.substr(header.contentp,header.contentlen);//will be revised by processing above
+	if(header.type==="90"){
+		if(header.content.length!==8){
+			header.valid=false;
+			return header;
+		}
+		header.tilePartLength=header.content.charCodeAt(2)*0x1000000+
+			header.content.charCodeAt(3)*0x10000+
+			header.content.charCodeAt(4)*0x100+
+			header.content.charCodeAt(5);
+		if(header.tilePartLength!==0 && header.tilePartLength<14){
+			header.valid=false;
+			return header;
+		}
+	}
 	//console.log(header.type+header.content+isJFIF(header.content))
 	//if(header.type=="c0"){
 	if(dlb>=0xc0 && dlb<=0xc3){
