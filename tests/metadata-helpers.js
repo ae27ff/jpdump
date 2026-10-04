@@ -94,10 +94,9 @@ class NativeDOMParser {
     }
 }
 
-function loadEXIF(overrides = {}, realConverter = false) {
+function loadEXIF(overrides = {}, realConverter = true) {
     const context = vm.createContext({
         atob, console,
-        xml2json: node => JSON.stringify({ text: node.textContent }),
         ...overrides
     });
     context.self = context;
@@ -106,7 +105,7 @@ function loadEXIF(overrides = {}, realConverter = false) {
     return context;
 }
 
-function readMetadata(bytes, overrides = {}, realConverter = false) {
+function readMetadata(bytes, overrides = {}, realConverter = true) {
     const context = loadEXIF(overrides, realConverter);
     const image = { src: 'data:image/jpeg;base64,' + bytes.toString('base64') };
     let called = false;

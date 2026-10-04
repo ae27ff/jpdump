@@ -24,3 +24,20 @@ test('JSON serialization does not mutate arrays and handles control characters',
     assert.deepEqual(JSON.parse(translator.toJson(data, '')), data);
     assert.deepEqual(JSON.parse(translator.toJson(data, '')), data);
 });
+
+xmlTest('Comments and processing instructions produce no fake metadata or alerts', () => {
+    const alerts = [];
+    const context = loadEXIF({ alert: message => alerts.push(message) });
+    for (const xml of [
+        '<root><!-- comment --><?instruction data?><a>first</a><b>second</b></root>',
+        '<root><item>first</item><!-- comment --><?instruction data?><item>second</item></root>',
+        '<root><value><!-- comment --><?instruction data?><![CDATA[actual]]></value></root>'
+    ]) {
+        const data = context.xml2json(new NativeDOMParser().parseFromString(xml));
+        assert.doesNotThrow(() => JSON.parse(data));
+        assert.equal(data.includes('#comment'), false);
+        assert.equal(data.includes('instruction'), false);
+        assert.ok(data.includes(xml.includes('actual') ? 'actual' : 'second'));
+    }
+    assert.deepEqual(alerts, []);
+});
