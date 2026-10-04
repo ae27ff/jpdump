@@ -419,7 +419,7 @@
     }
 
     function findEXIFinJPEG(file) {
-        return findJPEGAPP1(file, function(dataView, payloadStart, payloadLength) {
+        return findJPEGSegment(file, 0xE1, function(dataView, payloadStart, payloadLength) {
             if (payloadLength < 6 || getStringFromDB(dataView, payloadStart, 6) !== "Exif\0\0") return;
             try {
                 var segmentView = new DataView(dataView.buffer, dataView.byteOffset + payloadStart, payloadLength);
@@ -431,57 +431,35 @@
     }
 
     function findIPTCinJPEG(file) {
-        var dataView = new DataView(file);
+        var photoshopSignature = "Photoshop 3.0\0";
+        return findJPEGSegment(file, 0xED, function(dataView, payloadStart, payloadLength) {
+            if (payloadLength < photoshopSignature.length ||
+                    getStringFromDB(dataView, payloadStart, photoshopSignature.length) !== photoshopSignature) return;
 
-        if (debug) console.log("Got file of length " + file.byteLength);
-        if ((dataView.getUint8(0) != 0xFF) || (dataView.getUint8(1) != 0xD8)) {
-            if (debug) console.log("Not a valid JPEG");
-            return false; // not a valid jpeg
-        }
+            var offset = payloadStart + photoshopSignature.length;
+            var end = payloadStart + payloadLength;
+            while (offset + 7 <= end) {
+                if (getStringFromDB(dataView, offset, 4) !== "8BIM") return;
 
-        var offset = 2,
-            length = file.byteLength;
+                var resourceId = dataView.getUint16(offset + 4);
+                var nameLength = dataView.getUint8(offset + 6);
+                var nameFieldLength = nameLength + 1;
+                if (nameFieldLength % 2 !== 0) nameFieldLength++;
+                var sizeOffset = offset + 6 + nameFieldLength;
+                if (sizeOffset + 4 > end) return;
 
+                var resourceLength = dataView.getUint32(sizeOffset);
+                var resourceStart = sizeOffset + 4;
+                var resourceEnd = resourceStart + resourceLength;
+                var paddedResourceEnd = resourceEnd + (resourceLength % 2);
+                if (resourceEnd > end || paddedResourceEnd > end) return;
 
-        var isFieldSegmentStart = function(dataView, offset){
-            return (
-                dataView.getUint8(offset) === 0x38 &&
-                dataView.getUint8(offset+1) === 0x42 &&
-                dataView.getUint8(offset+2) === 0x49 &&
-                dataView.getUint8(offset+3) === 0x4D &&
-                dataView.getUint8(offset+4) === 0x04 &&
-                dataView.getUint8(offset+5) === 0x04
-            );
-        };
-
-        while (offset < length) {
-
-            if ( isFieldSegmentStart(dataView, offset )){
-
-                // Get the length of the name header (which is padded to an even number of bytes)
-                var nameHeaderLength = dataView.getUint8(offset+7);
-                if(nameHeaderLength % 2 !== 0) nameHeaderLength += 1;
-                // Check for pre photoshop 6 format
-                if(nameHeaderLength === 0) {
-                    // Always 4
-                    nameHeaderLength = 4;
+                if (resourceId === 0x0404) {
+                    return readIPTCData(dataView, resourceStart, resourceLength);
                 }
-
-                var startOffset = offset + 8 + nameHeaderLength;
-                var sectionLength = dataView.getUint16(offset + 6 + nameHeaderLength);
-
-                return readIPTCData(file, startOffset, sectionLength);
-
-                break;
-
+                offset = paddedResourceEnd;
             }
-
-
-            // Not the marker, continue searching
-            offset++;
-
-        }
-
+        });
     }
     var IptcFieldMap = {
         0x78 : 'caption',
@@ -495,17 +473,19 @@
         0x74 : 'copyright',
         0x0F : 'category'
     };
-    function readIPTCData(file, startOffset, sectionLength){
-        var dataView = new DataView(file);
+    function readIPTCData(dataView, startOffset, sectionLength){
         var data = {};
         var fieldValue, fieldName, dataSize, segmentType, segmentSize;
         var segmentStartPos = startOffset;
-        while(segmentStartPos < startOffset+sectionLength) {
+        var sectionEnd = startOffset + sectionLength;
+        if (startOffset < 0 || sectionLength < 0 || sectionEnd > dataView.byteLength) return data;
+        while(segmentStartPos + 5 <= sectionEnd) {
             if(dataView.getUint8(segmentStartPos) === 0x1C && dataView.getUint8(segmentStartPos+1) === 0x02){
                 segmentType = dataView.getUint8(segmentStartPos+2);
                 if(segmentType in IptcFieldMap) {
-                    dataSize = dataView.getInt16(segmentStartPos+3);
+                    dataSize = dataView.getUint16(segmentStartPos+3);
                     segmentSize = dataSize + 5;
+                    if(segmentStartPos + segmentSize > sectionEnd) return data;
                     fieldName = IptcFieldMap[segmentType];
                     fieldValue = getStringFromDB(dataView, segmentStartPos+5, dataSize);
                     // Check if we already stored a value with this name
@@ -813,7 +793,7 @@
         return tags;
     }
 
-    function findJPEGAPP1(file, onAPP1) {
+    function findJPEGSegment(file, wantedMarker, onSegment) {
         var dataView = file instanceof DataView ? file : new DataView(file);
         var length = dataView.byteLength;
         if (length < 2 || dataView.getUint8(0) !== 0xFF || dataView.getUint8(1) !== 0xD8) return;
@@ -854,8 +834,8 @@
             var segmentLength = dataView.getUint16(codeOffset + 1);
             var segmentEnd = codeOffset + 1 + segmentLength;
             if (segmentLength < 2 || segmentEnd > length) return;
-            if (marker === 0xE1) {
-                var result = onAPP1(dataView, codeOffset + 3, segmentLength - 2);
+            if (marker === wantedMarker) {
+                var result = onSegment(dataView, codeOffset + 3, segmentLength - 2);
                 if (typeof result !== "undefined") return result;
             }
 
@@ -868,7 +848,7 @@
         if (!('DOMParser' in self)) return;
 
         var signature = "http://ns.adobe.com/xap/1.0/\0";
-        var result = findJPEGAPP1(file, function(dataView, payloadStart, payloadLength) {
+        var result = findJPEGSegment(file, 0xE1, function(dataView, payloadStart, payloadLength) {
             if (payloadLength < signature.length || getStringFromDB(dataView, payloadStart, signature.length) !== signature) return;
 
             var xmpString = getStringFromDB(dataView, payloadStart + signature.length, payloadLength - signature.length);
