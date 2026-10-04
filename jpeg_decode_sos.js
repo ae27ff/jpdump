@@ -16,17 +16,11 @@
  */
 
 function getSOSComponentId(id){
-	if(id<1 || id>5) return id+" (Unknown)"
-	var ids=["","Y","Cb","Cr","I","Q"]
-	return ids[id];
+	return "ID "+id;
 }
 
 function getSOSComponentsStr(ncomponents){
-	if(compstr>4) return ncomponents+" (Unknown colorspace)"
-	var types=["","grayscale","","Color YcbCr or YIQ","Color CMYK"]
-	var compstr=ncomponents+" ("+types[ncomponents]+")"
-	if(compstr==="") compstr=ncomponents+" (Unknown colorspace)"
-	return compstr
+	return ncomponents+(ncomponents===1 ? " component in scan" : " components in scan");
 }
 
 function processSOS(data){
@@ -47,7 +41,7 @@ function processSOS(data){
     //Each component                2 bytes      For each component, read 2 bytes. It contains,
     for(var i=0;i<sos.ncomponents;i++){
         var component={id:0,idstr:"",actn:0,dctn:0};
-        // 1 byte   Component Id (1=Y, 2=Cb, 3=Cr, 4=I, 5=Q),
+        // 1 byte   Component Id (refer to the frame component identifiers),
         component.id=data.charCodeAt(p);
         component.idstr = getSOSComponentId(component.id);
         //  1 byte   Huffman table to use :

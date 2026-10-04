@@ -15,11 +15,7 @@ function processSOF0(data){
 	return sof0
 }
 function getSOF0ComponentsStr(ncomponents){
-	if(compstr>4) return ncomponents+" (Unknown colorspace)"
-	var types=["","grayscale","","Color YcbCr or YIQ","Color CMYK"]
-	var compstr=ncomponents+" ("+types[ncomponents]+")"
-	if(compstr==="") compstr=ncomponents+" (Unknown colorspace)"
-	return compstr
+	return ncomponents+(ncomponents===1 ? " component" : " components");
 }
 function processSOF0Component(data){
 	var comp={id:0,idstr:"",samplingfactors:0,samplingstr:"",qtablenum:0}
@@ -31,9 +27,7 @@ function processSOF0Component(data){
 	return comp
 }
 function getSOF0ComponentId(id){
-	if(id<1 || id>5) return id+" (Unknown)"
-	var ids=["","Y","Cb","Cr","I","Q"]
-	return ids[id]
+	return "ID "+id;
 }
 function getSOF0SamplingFactor(samp){
 	//vertical horizontal
