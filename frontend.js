@@ -1,5 +1,6 @@
 var g_ImageData="";
-var g_ExifParent={}
+var g_ImageRequestId=0;
+var g_ResultRequestId=0;
 branding.init();
 window.addEventListener('load',function(){
   var up=document.getElementById('upload');
@@ -13,32 +14,30 @@ function handleFileSelect(evt) {
 	var files = evt.target.files; // FileList object
 
 	// use the 1st file from the list
-	f = files[0];
+	var f = files[0];
+	if (!f) return;
+	var requestId = ++g_ImageRequestId;
 
 	var reader = new FileReader();
 
-	// Closure to capture the file information.
-	reader.onload = (function(theFile) {
-		return function(e) {
-                        console.log("reader onload");
+	// Capture the selection so an older read cannot replace a newer image.
+	reader.onload = function(e) {
+		if (requestId !== g_ImageRequestId) return;
+		console.log("reader onload");
+		window.g_debug_event=e;
+		window.g_debug_target=e.target;
+		window.g_debug_result=e.target.result;
 
-                        window.g_debug_event=e;
-                        window.g_debug_target=e.target;
-                        window.g_debug_result=e.target.result;
-                        
-                        var result=null;
-                        if(typeof e.target.result === "undefined" || e.target.result===null){
-                            result=e.target.content;//IE11
-                        }else{
-                            result=e.target.result;
-                        }
-                        
-			g_ImageData=result;
-			previewImage(result);
-			console.log('x');
-			//setTimeout(processData,250);
-		};
-	})(f);
+		var result=null;
+		if(typeof e.target.result === "undefined" || e.target.result===null){
+			result=e.target.content;//IE11
+		}else{
+			result=e.target.result;
+		}
+		g_ImageData=result;
+		previewImage(result, requestId);
+		console.log('x');
+	};
 	reader.readAsBinaryString(f);
 
 	// Read in the image file as a data URL.
@@ -73,37 +72,29 @@ function addPreviewEXIF(parent,json){
 	parent.children[1].appendChild(elEXIF);
 }
 function getPreviewEXIF(parent){
-	g_ExifParent=parent
-
+	var requestId = g_ImageRequestId;
+	var resultId = g_ResultRequestId;
+	var imageData = g_ImageData;
 	var image = new Image();
-    image.onload = function() {
-        EXIF.getData(image, function() {
-			 var allMetaData = EXIF.getAllTags(this);
-			 //console.log(allMetaData)
-			addPreviewEXIF(g_ExifParent,allMetaData);
-            //alert(EXIF.pretty(this));
-        });
-    };
-	image.src="data:application/jpeg;base64," + btoa(g_ImageData);
-
-
-	/*
-	//var img2 = document.getElementById("preview");
-	//return
-    var ret=EXIF.getData(img2, function() {
-        var allMetaData = EXIF.getAllTags(this);
-		console.log(allMetaData)
-		addPreviewEXIF(g_ExifParent,allMetaData);
-    });
-	console.log(img2.complete)
-	console.log(ret)
-	*/
+	image.onload = function() {
+		if (requestId !== g_ImageRequestId || resultId !== g_ResultRequestId) return;
+		EXIF.getData(image, function() {
+			if (requestId !== g_ImageRequestId || resultId !== g_ResultRequestId) return;
+			var allMetaData = EXIF.getAllTags(this);
+			addPreviewEXIF(parent,allMetaData);
+		});
+	};
+	image.src="data:application/jpeg;base64," + btoa(imageData);
 }
 
-function previewImage(data){
+function previewImage(data, requestId){
+	if (typeof requestId === 'undefined') requestId = g_ImageRequestId;
 	var img=document.getElementById('preview');
-	img.onload=processData
-	img.onerror=processData
+	var onComplete = function() {
+		if (requestId === g_ImageRequestId) processData();
+	};
+	img.onload=onComplete;
+	img.onerror=onComplete;
 	img.src="data:application/jpeg;base64," + btoa(data);
 }
 function getPreviewDims(){
@@ -310,6 +301,7 @@ function displayScanComponentInfo(comp){
 
 
 function displayResults(info){
+	++g_ResultRequestId;
 	var elImage=document.getElementById('image')
 	elImage.innerHTML="";
 	var elHeaders=[]
