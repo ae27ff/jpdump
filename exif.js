@@ -689,9 +689,11 @@
                     // extract the thumbnail
                         var tOffset = tiffStart + thumbTags.JpegIFOffset;
                         var tLength = thumbTags.JpegIFByteCount;
-                        thumbTags['blob'] = new Blob([new Uint8Array(dataView.buffer, dataView.byteOffset + tOffset, tLength)], {
-                            type: 'image/jpeg'
-                        });
+                        if (tOffset >= 0 && tLength > 0 && tOffset <= dataView.byteLength && tLength <= dataView.byteLength - tOffset) {
+                            thumbTags['blob'] = new Blob([new Uint8Array(dataView.buffer, dataView.byteOffset + tOffset, tLength)], {
+                                type: 'image/jpeg'
+                            });
+                        }
                     }
                 break;
 
