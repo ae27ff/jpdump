@@ -857,7 +857,7 @@
             if (xmpStart < 0 || xmpEnd < 8) return;
             xmpString = xmpString.substring(xmpStart, xmpEnd);
 
-            var indexOfXmp = xmpString.indexOf('x:xmpmeta') + 10;
+            var indexOfXmp = xmpString.indexOf('x:xmpmeta') + 'x:xmpmeta'.length;
             // Some encoders omit namespace declarations which the XML parser requires.
             var namespaces = [
                 ['Iptc4xmpCore', 'http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/'],
