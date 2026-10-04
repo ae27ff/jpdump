@@ -423,7 +423,13 @@
             if (payloadLength < 6 || getStringFromDB(dataView, payloadStart, 6) !== "Exif\0\0") return;
             try {
                 var segmentView = new DataView(dataView.buffer, dataView.byteOffset + payloadStart, payloadLength);
-                return readEXIFData(segmentView, 0) || undefined;
+                var tags = readEXIFData(segmentView, 0);
+                if (!tags) return;
+                var meaningful = Object.keys(tags).some(function(tag) {
+                    if (tag === 'thumbnail') return Object.keys(tags[tag]).length > 0;
+                    return tag !== 'ExifIFDPointer' && tag !== 'GPSInfoIFDPointer';
+                });
+                if (meaningful) return tags;
             } catch (error) {
                 return;
             }
@@ -534,6 +540,7 @@
 
 
     function readTags(file, tiffStart, dirStart, strings, bigEnd) {
+        if (!validIFD(file, tiffStart, dirStart, bigEnd)) return {};
         var entries = file.getUint16(dirStart, !bigEnd),
             tags = {},
             entryOffset, tag,
@@ -544,7 +551,8 @@
             tag = strings[file.getUint16(entryOffset, !bigEnd)];
             if (!tag && debug) console.log("Unknown tag: " + file.getUint16(entryOffset, !bigEnd));
             if (!tag) continue;
-            tags[tag] = readTagValue(file, entryOffset, tiffStart, dirStart, bigEnd);
+            var value = readTagValue(file, entryOffset, tiffStart, dirStart, bigEnd);
+            if (typeof value !== 'undefined') tags[tag] = value;
         }
         return tags;
     }
@@ -557,6 +565,13 @@
             offset,
             vals, val, n,
             numerator, denominator;
+
+        var sizes = [0,1,1,2,4,8,1,1,2,4,8,4,8];
+        var size = sizes[type];
+        if (!size || numValues < 1) return;
+        var byteLength = numValues * size;
+        offset = byteLength > 4 ? valueOffset : entryOffset + 8;
+        if (offset < tiffStart + 8 || offset > file.byteLength || byteLength > file.byteLength - offset) return;
 
         switch (type) {
             case 1: // byte, 8-bit unsigned int
@@ -574,7 +589,17 @@
 
             case 2: // ascii, 8-bit byte
                 offset = numValues > 4 ? valueOffset : (entryOffset + 8);
+                if (file.getUint8(offset+numValues-1) !== 0) return;
                 return getStringFromDB(file, offset, numValues-1);
+
+            case 6: // signed byte
+            case 8: // signed short
+            case 11: // IEEE float
+            case 12: // IEEE double
+                var reader = {6:'getInt8',8:'getInt16',11:'getFloat32',12:'getFloat64'}[type];
+                vals = [];
+                for (n=0;n<numValues;n++) vals.push(file[reader](offset+size*n,!bigEnd));
+                return numValues === 1 ? vals[0] : vals;
 
             case 3: // short, 16 bit int
                 if (numValues == 1) {
@@ -643,6 +668,11 @@
         }
     }
 
+    function validIFD(file, tiffStart, dirStart, bigEnd) {
+        if (typeof dirStart !== 'number' || dirStart % 1 !== 0 || dirStart < tiffStart + 8 || dirStart + 2 > file.byteLength) return false;
+        return file.getUint16(dirStart, !bigEnd) <= Math.floor((file.byteLength - dirStart - 2) / 12);
+    }
+
     /**
     * Given an IFD (Image File Directory) start offset
     * returns an offset to next IFD or 0 if it's the last IFD.
@@ -650,6 +680,7 @@
     function getNextIFDOffset(dataView, dirStart, bigEnd){
         //the first 2bytes means the number of directory entries contains in this IFD
         var entries = dataView.getUint16(dirStart, !bigEnd);
+        if (dirStart + 2 + entries * 12 + 4 > dataView.byteLength) return 0;
 
         // After last directory entry, there is a 4bytes of data,
         // it means an offset to next IFD.
@@ -666,7 +697,7 @@
             // console.log('******** IFD1Offset is empty, image thumb not found ********');
             return {};
         }
-        else if (IFD1OffsetPointer > dataView.byteLength) { // this should not happen
+        else if (!validIFD(dataView, tiffStart, tiffStart + IFD1OffsetPointer, bigEnd)) {
             // console.log('******** IFD1Offset is outside the bounds of the DataView ********');
             return {};
         }
@@ -715,7 +746,7 @@
 
     function getStringFromDB(buffer, start, length) {
         var outstr = "";
-        for (n = start; n < start+length; n++) {
+        for (var n = start; n < start+length; n++) {
             outstr += String.fromCharCode(buffer.getUint8(n));
         }
         return outstr;
@@ -753,6 +784,7 @@
             if (debug) console.log("Not valid TIFF data! (First offset less than 8)", file.getUint32(tiffOffset+4, !bigEnd));
             return false;
         }
+        if (!validIFD(file, tiffOffset, tiffOffset + firstIFDOffset, bigEnd)) return false;
 
         tags = readTags(file, tiffOffset, tiffOffset + firstIFDOffset, TiffTags, bigEnd);
 
@@ -775,20 +807,18 @@
                     case "Sharpness" :
                     case "SubjectDistanceRange" :
                     case "FileSource" :
-                        exifData[tag] = StringValues[tag][exifData[tag]];
+                        if (Object.prototype.hasOwnProperty.call(StringValues[tag],exifData[tag])) exifData[tag] = StringValues[tag][exifData[tag]];
                         break;
 
                     case "ExifVersion" :
                     case "FlashpixVersion" :
-                        exifData[tag] = String.fromCharCode(exifData[tag][0], exifData[tag][1], exifData[tag][2], exifData[tag][3]);
+                        if (Array.isArray(exifData[tag]) && exifData[tag].length === 4) exifData[tag] = String.fromCharCode.apply(null, exifData[tag]);
                         break;
 
                     case "ComponentsConfiguration" :
-                        exifData[tag] =
-                            StringValues.Components[exifData[tag][0]] +
-                            StringValues.Components[exifData[tag][1]] +
-                            StringValues.Components[exifData[tag][2]] +
-                            StringValues.Components[exifData[tag][3]];
+                        if (Array.isArray(exifData[tag]) && exifData[tag].length === 4 && exifData[tag].every(function(value) { return Object.prototype.hasOwnProperty.call(StringValues.Components,value); })) {
+                            exifData[tag] = exifData[tag].map(function(value) { return StringValues.Components[value]; }).join('');
+                        }
                         break;
                 }
                 tags[tag] = exifData[tag];
@@ -800,10 +830,7 @@
             for (tag in gpsData) {
                 switch (tag) {
                     case "GPSVersionID" :
-                        gpsData[tag] = gpsData[tag][0] +
-                            "." + gpsData[tag][1] +
-                            "." + gpsData[tag][2] +
-                            "." + gpsData[tag][3];
+                        if (Array.isArray(gpsData[tag]) && gpsData[tag].length === 4) gpsData[tag] = gpsData[tag].join('.');
                         break;
                 }
                 tags[tag] = gpsData[tag];
@@ -819,9 +846,11 @@
     function findJPEGSegment(file, wantedMarker, onSegment) {
         var dataView = file instanceof DataView ? file : new DataView(file);
         var length = dataView.byteLength;
-        if (length < 2 || dataView.getUint8(0) !== 0xFF || dataView.getUint8(1) !== 0xD8) return;
-
-        var offset = 2;
+        if (length < 2 || dataView.getUint8(0) !== 0xFF) return;
+        var offset = 1;
+        while (offset < length && dataView.getUint8(offset) === 0xFF) offset++;
+        if (offset >= length || dataView.getUint8(offset) !== 0xD8) return;
+        offset++;
         var inScan = false;
         var jpegLS = false;
         while (offset < length) {
@@ -892,7 +921,10 @@
     function parseXMPDocument(xmpString) {
         try {
             var xml = new DOMParser().parseFromString(xmpString, 'text/xml');
-            if (!xml || !xml.documentElement || xml.getElementsByTagName('parsererror').length > 0) return;
+            if (!xml || !xml.documentElement) return;
+            var errors=xml.getElementsByTagName('parsererror');
+            for(var index=0;index<errors.length;index++)
+                if(errors[index].namespaceURI==='http://www.mozilla.org/newlayout/xml/parsererror.xml') return;
             return xml;
         } catch (error) {
             // A malformed optional packet must not prevent other metadata from loading.
@@ -960,40 +992,17 @@
 
     function xml2Object(xml) {
         try {
-            var obj = {};
-            if (xml.children.length > 0) {
-              for (var i = 0; i < xml.children.length; i++) {
-                var item = xml.children.item(i);
-                var attributes = item.attributes;
-                for(var idx in attributes) {
-                    var itemAtt = attributes[idx];
-                    var dataKey = itemAtt.nodeName;
-                    var dataValue = itemAtt.nodeValue;
-
-                    if(dataKey !== undefined) {
-                        obj[dataKey] = dataValue;
-                    }
-                }
-                var nodeName = item.nodeName;
-
-                if (typeof (obj[nodeName]) == "undefined") {
-                  obj[nodeName] = xml2json(item);
-                } else {
-                  if (typeof (obj[nodeName].push) == "undefined") {
-                    var old = obj[nodeName];
-
-                    obj[nodeName] = [];
-                    obj[nodeName].push(old);
-                  }
-                  obj[nodeName].push(xml2json(item));
-                }
-              }
-            } else {
-              obj = xml.textContent;
+            var item=xml.documentElement || xml;
+            if(item.nodeType!==1) return;
+            var obj=Object.create(null);
+            for(var index=0;index<item.attributes.length;index++) {
+                var attribute=item.attributes[index];
+                obj[attribute.nodeName]=attribute.nodeValue;
             }
+            obj[item.nodeName]=xml2json(item);
             return obj;
           } catch (e) {
-              console.log(e.message);
+              if(debug) console.log(e.message);
           }
     }
 
