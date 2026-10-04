@@ -13,7 +13,7 @@ function processJFIF(data){
 	jfif.xthumbpixels=data.charCodeAt(p+12)
 	jfif.ythumbpixels=data.charCodeAt(p+13)
 	jfif.thumbpixels=jfif.xthumbpixels*jfif.ythumbpixels
-	jfif.thumblen=jfif.thumbpixels;//3 byte entries (packed 24-bit RGB)  3n total = Xthumbnail * Ythumbnail
+	jfif.thumblen=3*jfif.thumbpixels;//3 byte entries (packed 24-bit RGB)  3n total = Xthumbnail * Ythumbnail
 	p=14
 	jfif.thumb=data.substr(p,jfif.thumblen);
 	p+=jfif.thumblen
