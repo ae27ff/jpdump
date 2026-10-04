@@ -92,6 +92,14 @@ test('A throwing XML parser does not prevent the metadata callback', () => {
     assert.deepEqual(Object.keys(image.xmpdata), []);
 });
 
+xmlTest('A legitimate parsererror element and XMLDocument without children are accepted', () => {
+    class MinimalDocumentParser extends NativeDOMParser {
+        parseFromString(packet) { const doc=super.parseFromString(packet); delete doc.children; return doc; }
+    }
+    const image=readMetadata(xmpJPEG('<x:xmpmeta xmlns:x="adobe:ns:meta/"><parsererror xmlns="urn:custom">metadata</parsererror></x:xmpmeta>'),{DOMParser:MinimalDocumentParser});
+    assert.equal(xmpText(image.xmpdata['x:xmpmeta']),'metadata');
+});
+
 for (const [decoderName, decoder] of [['native decoder', TextDecoder], ['legacy fallback', undefined]]) {
     xmlTest('XMP preserves UTF-8 text and attributes using the ' + decoderName, () => {
         const title = 'café 東京 😀';
