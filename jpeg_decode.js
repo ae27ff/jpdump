@@ -22,7 +22,7 @@ function processJPEG(data){
 				console.log("prevtype: "+prevheader.type)
 				console.log("prevoffset: "+prevheader.p)
 				console.log("nextoffset: "+p)
-				prevheader.actuallen=(p-prevheader.p)-2;//subtract marker bytes from previous header len - this is differencing the start position of two headers, so it includes marker bytes
+				prevheader.actuallen=(p-prevheader.p)-prevheader.markerwidth;//exclude the previous marker, not the following marker
 				prevheader.contentlen=prevheader.actuallen;
 				if(prevheader.haslenbytes){
 					prevheader.contentlen-=2;//if we scanned in the data and the header has no length bytes, don't subtract them!
@@ -73,61 +73,84 @@ function processJPEG(data){
 }
 
 
-function scanJPEGEnd(data,ps){
-	for(p=ps;p<data.length;p++){
-		var hb=pad(data.charCodeAt(p).toString(16),2)
-		var lb=pad(data.charCodeAt(p+1).toString(16),2)
-		var dlb=data.charCodeAt(p+1)
-		if(hb=="ff" && lb=="d9" ) return p;//OPTIONAL: && (dlb<0xd0 || dlb>0xd7)  d0-d7 are restart markers, we could ignore during scan
+function findMarkerStart(data,ps){
+	for(var p=ps;p<data.length;p++){
+		if(data.charCodeAt(p)!==0xff) continue;
+		var codep=p+1;
+		while(codep<data.length && data.charCodeAt(codep)===0xff) codep++;
+		if(codep>=data.length) return data.length;
+		if(data.charCodeAt(codep)===0x00){
+			p=codep;
+			continue;
+		}
+		return p;
 	}
-	return p
+	return data.length;
+}
+
+function scanJPEGEnd(data,ps){
+	for(var p=ps;p<data.length;p=findMarkerStart(data,p+1)){
+		if(p>=data.length) return data.length;
+		var codep=p+1;
+		while(codep<data.length && data.charCodeAt(codep)===0xff) codep++;
+		var marker=data.charCodeAt(codep);
+		if(marker===0xd9) return p;
+	}
+	return data.length
 }
 
 function scanJPEG(data,ps){
-	for(p=ps;p<data.length;p++){
-		var hb=pad(data.charCodeAt(p).toString(16),2)
-		var lb=pad(data.charCodeAt(p+1).toString(16),2)
-		var dlb=data.charCodeAt(p+1)
-		if(hb=="ff" && lb!="00" ) return p;//OPTIONAL: && (dlb<0xd0 || dlb>0xd7)  d0-d7 are restart markers, we could ignore during scan
-	}
-	return p
+	return findMarkerStart(data,ps)
 }
 
 function processHeader(data,p){
-	var header={valid:true,magic:"00",type:"00",haslen:true,haslenbytes:true,p:p,len:0,actuallen:0,contentp:(p+2),content:"",nextp:(p+2),contentlen:0,desc:{},hasextendeddata:false,extendedtype:"",extendeddata:{}}
-	var hb=pad(data.charCodeAt(p).toString(16),2)
-	var lb=pad(data.charCodeAt(p+1).toString(16),2)
-	var dlb=data.charCodeAt(p+1)
+	var header={valid:true,magic:"00",type:"00",haslen:true,haslenbytes:true,p:p,len:0,actuallen:0,contentp:(p+2),content:"",nextp:(p+2),contentlen:0,desc:{},hasextendeddata:false,extendedtype:"",extendeddata:{},markerwidth:2}
+	if(p>=data.length || data.charCodeAt(p)!==0xff){
+		header.valid=false;
+		return header;
+	}
+	var codep=p+1;
+	while(codep<data.length && data.charCodeAt(codep)===0xff) codep++;
+	if(codep>=data.length || data.charCodeAt(codep)===0x00){
+		header.valid=false;
+		return header;
+	}
+	var hb="ff"
+	var lb=pad(data.charCodeAt(codep).toString(16),2)
+	var dlb=data.charCodeAt(codep)
 	header.magic=hb
-	header.valid=(hb=="ff");
+	header.markerwidth=codep-p+1;
+	header.valid=true;
 	header.type=lb;
 	//console.log(hb+lb)
 	if(!header.valid) return header;
 	header.desc=jpeg_headerdump_name(header.type)
 
 
-	header.haslenbytes = header.haslen=(header.type!="4f" && header.type!="d8" && header.type!="d9");//fixed: support restart markers
+	header.haslenbytes = header.haslen=(header.type!="4f" && header.type!="d8" && header.type!="d9" && header.type!="01" && !(dlb>=0xd0 && dlb<=0xd7));
 	if(header.type=="93" || (dlb>=0xd0 && dlb<=0xd7)) header.haslenbytes=false;
 
 	if(!header.haslen){
 		header.len='None (No content)'
+		header.nextp=codep+1
 		return header
 	}
 
 
 	if(!header.haslenbytes){//J2K-SOD scan's from end of marker with no length bytes (fixed 16-bit)
 		header.len='None (Scanned)'
+		header.nextp=codep+1
 		return header;
 	}
 
 
 
 
-	header.contentp+=2
-	hb=pad(data.charCodeAt(p+2).toString(16),2)
-	lb=pad(data.charCodeAt(p+3).toString(16),2)
+	header.contentp=codep+3
+	hb=pad(data.charCodeAt(codep+1).toString(16),2)
+	lb=pad(data.charCodeAt(codep+2).toString(16),2)
 	header.len=parseInt(hb+lb,16)
-	header.nextp+=header.len
+	header.nextp=codep+1+header.len
 	if(header.haslenbytes) header.contentlen=header.len-2
 
 	header.content=data.substr(header.contentp,header.contentlen);//will be revised by processing above
