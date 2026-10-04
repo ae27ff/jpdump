@@ -65,3 +65,22 @@ test('Malformed EXIF enumeration strings cannot resolve inherited lookup propert
     assert.equal(tags.Make,'A');
     assert.equal(tags.LightSource,'toString');
 });
+
+test('Digital zoom uses the standard EXIF tag name', () => {
+    const extra=Buffer.alloc(26);
+    extra.writeUInt16LE(1,0);
+    extra.writeUInt16LE(0xa404,2); extra.writeUInt16LE(5,4);
+    extra.writeUInt32LE(1,6); extra.writeUInt32LE(44,10);
+    extra.writeUInt32LE(3,18); extra.writeUInt32LE(2,22);
+    const tags=readMetadata(jpeg(tiffSegment([{tag:0x8769,type:4,count:1,value:26}],{extra}))).exifdata;
+    assert.equal(Number(tags.DigitalZoomRatio),1.5);
+    assert.equal(Object.hasOwn(tags,'DigitalZoomRation'),false);
+});
+
+test('A truncated APP1 retains complete EXIF fields within its available bytes', () => {
+    const segment=exifSegment(), bytes=Buffer.concat([Buffer.from([255,216]),segment.subarray(0,-2)]);
+    assert.equal(readMetadata(bytes).exifdata.Make,'A');
+    // Oversized declared length has no trustworthy following segment boundary.
+    const overlong=Buffer.from(bytes); overlong.writeUInt16BE(65535,4);
+    assert.equal(readMetadata(overlong).exifdata.Make,'A');
+});
