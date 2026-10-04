@@ -1,7 +1,8 @@
 Consolidated review follow-up
 
-Duplicate reports have been combined. All 15 confirmed issues are fixed in
-separate commits; the pre-existing .gitignore modification is preserved.
+Duplicate reports have been combined. The original 15 confirmed issues were
+fixed in separate commits. The subsequent review/fix loop uses one commit per
+changed file, as requested. The pre-existing .gitignore modification is preserved.
 
 01 Fixed (72ec9bf): Nonnegative parsed size for empty/invalid input.
 02 Fixed (68e8447): APP1 marker label.
@@ -23,7 +24,7 @@ separate commits; the pre-existing .gitignore modification is preserved.
 14 Fixed (e70a4a8): Eager encoding and unbounded segment previews.
    Segment links retain raw strings; previews are computed on demand and limited
    to 65536 bytes. Raw downloads retain all bytes and create Blobs on demand.
-15 Fixed (this commit): Blob URL lifecycle when results are replaced.
+15 Fixed (fdcae94): Blob URL lifecycle when results are replaced.
    Replacing results revokes created URLs and clears byte references/previews.
 
 DNL continuation report: not confirmed for JPEG T.81. Section B.2.5 requires
@@ -32,7 +33,98 @@ is not a valid JPEG scan. A legal DNL-at-scan-end regression passes and resolves
 the initially zero SOF height. A continuation without SOS is rejected.
 Reference: https://www.w3.org/Graphics/JPEG/itu-t81.pdf
 
-Validation: all 69 tests pass, all 24 JavaScript files pass syntax checks, and
+Original-pass validation: all 69 tests pass, all 24 JavaScript files pass syntax checks, and
 git diff --check passes. Command: node --test tests/*.test.js
 This is a structure/metadata inspector, not a complete entropy decoder. Structure
 checks do not certify decoded pixels or full compliance with every JPEG process.
+
+Review/fix loop follow-up (2026-10-04)
+
+Repeated complete source reviews, focused reproductions, fixes, and regression
+checks found and fixed the following additional issues. The final source pass
+found no further actionable bugs within the structure/metadata inspection scope.
+
+16 Shared loop globals could skip or repeat headers, including an infinite
+   rendering loop when EXIF byte-array conversion reset the outer loop index.
+   All affected helpers and rendering loops now use local variables. Rendering
+   tests exercise the actual accordion code, including cross-realm arrays.
+17 Uploads retained FileReader debug references and used a nonstandard binary
+   string API. ArrayBuffer reads and bounded byte-to-string conversion now
+   preserve binary bytes. Read failures clear stale previews/results/downloads;
+   failures from older selections cannot replace the current selection.
+18 Metadata object rendering could inject markup or throw for a field named
+   hasOwnProperty. It now escapes values and uses a safe own-property check.
+   Accordion buttons use text headings and cannot submit an enclosing form.
+19 The displayed dimensions depended on browser codec support. They now come
+   from parsed frame/SIZ/DHP data. JPEG-LS scan fields and mapping selectors,
+   lossless frame names, and JPEG 2000 POC/COM/EOC marker labels are corrected.
+   Incomplete/unrecognized markers have defined labels instead of undefined.
+20 A malformed known EXIF value or optional IFD/thumbnail pointer could discard
+   otherwise valid tags. Counts, types, offsets and byte ranges are checked per
+   field/directory within the APP1 boundary. ASCII requires its terminating NUL.
+21 Signed byte/short and IEEE float/double TIFF fields were silently omitted.
+   Their values now use the declared type and byte order. Unknown enumeration
+   values remain raw; inherited lookup properties cannot become fake values.
+22 Empty/unusable EXIF directories could hide later valid APP1 metadata. Such
+   directories are skipped. Legal marker fill preceding SOI is also accepted
+   by the shared EXIF/IPTC/XMP segment traversal.
+23 XML names such as __proto__, constructor and toString could disappear or
+   corrupt the conversion result. Conversion maps now have no object prototype.
+24 Whitespace-only XML literals and inherited xml:space="preserve" text were
+   lost. Leaf text and explicit whitespace preservation now survive conversion.
+25 A legitimate parsererror element was mistaken for a parser failure, and
+   XMLDocument implementations without children lost the XMP root. Parser-error
+   detection now checks its namespace; root conversion uses documentElement.
+26 Scan parameters, selector bounds/order, interleaved sampling totals, repeated
+   or incomplete components, and progressive DC/refinement history could be
+   reported valid despite malformed structure. These are now checked per frame.
+27 Restart markers could appear after a closed scan, with no restart interval,
+   or in the wrong sequence. Active-scan state, interval widths and modulo-eight
+   ordering are now checked. Empty entropy segments are rejected.
+28 Truncated/invalid DQT, DHT and DAC definitions were accepted. Payload sizes,
+   table classes/destinations, nonzero quantizers, Huffman tree capacity and
+   arithmetic conditioning ranges are checked. Eight-bit scans cannot use a
+   sixteen-bit quantizer; progressive scans cannot change a used quantizer.
+29 Multiple/differential frames could be accepted without a hierarchy or valid
+   references. DHP parameters, component coverage/references, coding-family
+   consistency, differential predictors and EXP placement are now checked.
+30 Valid JPEG-LS extended DNL/LSE dimensions were misread, while malformed LSE
+   presets/interleave modes were accepted. Declared widths, dimensions, NEAR,
+   thresholds (including defaults) and RESET bounds are now checked.
+31 JPEG 2000 SIZ/default/tile-part structure was largely unchecked. Mandatory
+   headers, geometry, components, tile IDs/parts, Psot bounds and SOP lengths are
+   checked. Psot starts at the actual SOT marker after fill bytes; reserved
+   no-length markers and unknown length-bearing segments remain inspectable.
+32 An unused helper replaced native String.replaceAll with incompatible regular
+   expression behavior. The replacement was removed.
+
+Final validation:
+- All 97 regression tests pass, with no skipped tests on this Windows host.
+  Command: node --test --test-isolation=none --test-reporter=dot tests/*.test.js
+- All 24 JavaScript files pass node --check; git diff --check passes.
+- All byte truncations and deterministic mutations of the baseline JPEG,
+  OpenJPEG fixture truncations, and 692 EXIF mutations terminate safely.
+- A generated corpus of 58 JPEG/JPEG 2000 files passes: grayscale/RGB/CMYK,
+  progressive/sequential, multiple sizes/qualities, and tiled codestreams.
+  Generated with the already bundled Pillow/OpenJPEG libraries; no dependencies
+  or install scripts were added. An additional synthetic OpenJPEG fixture and
+  its provenance are tracked for repeatable tests.
+- Real browser upload of the official CharLS fixture renders five headers,
+  exact file/data sizes, 128x128 dimensions, and a 9379-byte coded-data preview.
+  Accordion/preview interactions have no console errors. Browser download-event
+  capture timed out; byte-exact Blob downloads, repeated clicks and URL cleanup
+  are covered by the regression suite.
+
+References:
+JPEG syntax, scans, tables and hierarchy:
+https://www.w3.org/Graphics/JPEG/itu-t81.pdf
+JPEG 2000 core syntax:
+https://www.itu.int/rec/dologin_pub.asp?id=T-REC-T.800-201511-S!!PDF-E&lang=e&type=items
+JPEG-LS parsing and preset rules:
+https://github.com/team-charls/charls/blob/main/src/jpeg_stream_reader.cpp
+https://github.com/team-charls/charls/blob/main/src/jpegls_preset_coding_parameters.hpp
+
+Scope remains structural/metadata inspection, including abbreviated streams.
+The parser does not decode entropy/pixels or implement full validation of every
+JPEG/JPEG-LS/JPEG 2000 extension. Passing these checks is not a conformance
+certificate or a proof that the application has no possible remaining bugs.
