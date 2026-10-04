@@ -24,22 +24,19 @@ function hexdec(h){
 
 function hexdump(data,wrap){
 	var hex=""
-	for(p=0;p<data.length;p++){
+	for(var p=0;p<data.length;p++){
 		hex+=pad(data.charCodeAt(p).toString(16),2)+" "
 		if( ((p+1)%wrap)==0 ) hex+="\r\n";
 	}
 	return hex
 }
-String.prototype.replaceAll = function(search, replacement) {
-    var target = this;
-    return target.replace(new RegExp(search, 'g'), replacement);
-};
 
 
 function array2string(arr){
-	var str=""
-	for(i=0;i<arr.length;i++){
-		str+=String.fromCharCode(arr[i])
+	var chunks=[];
+	for(var i=0;i<arr.length;i+=32768){
+		var chunk=Array.prototype.slice.call(arr,i,i+32768);
+		chunks.push(String.fromCharCode.apply(null,chunk));
 	}
-	return str
+	return chunks.join('');
 }
