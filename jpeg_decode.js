@@ -10,6 +10,8 @@ function processJPEG(data){
 		hasextraneous:false,
 		extraneous:""
 	};
+	var jpeg2000=false, frame=null, frameScans=0, scans=0;
+	var hasTableStreamData=false, hasSIZ=false, hasSOT=false, hasSOD=false;
 
 	for(var p=0;p<data.length;p++){
 		var header=processHeader(data,p)
@@ -26,6 +28,36 @@ function processJPEG(data){
 			break;
 		}
 		var nextp=header.nextp
+		if(p===0) jpeg2000=header.type==='4f';
+		if(p>0 && (header.type==='d8' || header.type==='4f')) header.valid=false;
+		if(jpeg2000){
+			if(header.type==='51') hasSIZ=true;
+			if(header.type==='90') { if(!hasSIZ) header.valid=false; hasSOT=true; }
+			if(header.type==='93') { if(!hasSOT) header.valid=false; hasSOD=true; }
+		}else{
+			if(header.type==='db' || header.type==='c4' || header.type==='cc' || header.type==='fe' ||
+				(hexdec(header.type)>=0xe0 && hexdec(header.type)<=0xef)) hasTableStreamData=true;
+			if(isSOFMarker(header.type)){
+				if(frame && (frameScans===0 || frame.extendeddata.imgh===0)) header.valid=false;
+				frame=header;
+				frameScans=0;
+			}
+			if(header.type==='da'){
+				if(!frame || !validScanComponents(frame,header)) header.valid=false;
+				frameScans++;
+				scans++;
+			}
+			if(header.type==='dc'){
+				// T.81 B.2.5: DNL terminates the first scan; it does not resume it.
+				var beforeDNL=info.headers[info.headers.length-2];
+				var followsScan=beforeDNL && (beforeDNL.type==='da' || (hexdec(beforeDNL.type)>=0xd0 && hexdec(beforeDNL.type)<=0xd7));
+				if(!frame || scans!==1 || !followsScan || header.content.length<2 ||
+					hexdec(get2bytes(header.content,0))===0) header.valid=false;
+				else frame.extendeddata.imgh=hexdec(get2bytes(header.content,0));
+			}
+			if(hexdec(header.type)>=0xd0 && hexdec(header.type)<=0xd7 && frameScans===0) header.valid=false;
+		}
+		if(!header.valid){ info.valid=false; break; }
 		if(header.type=="93"){
 			var tilePartHeader;
 			for(var h=info.headers.length-1;h>=0;h--){
@@ -66,6 +98,9 @@ function processJPEG(data){
 	if(info.headers.length===0 || info.headers[info.headers.length-1].type!=="d9"){
 		info.valid=false;
 	}
+	if(jpeg2000 ? !hasSIZ || !hasSOT || !hasSOD :
+		(frame ? frameScans===0 || frame.extendeddata.imgh===0 : !hasTableStreamData || scans!==0)) info.valid=false;
+	info.tableOnly=!jpeg2000 && !frame && hasTableStreamData && info.valid;
 
 	if(info.filesize>info.nextp){
 		info.hasextraneous=true
@@ -127,6 +162,18 @@ function scanJPEG(data,ps){
 function isSOFMarker(type){
 	var marker=hexdec(type);
 	return (marker>=0xc0 && marker<=0xcf && marker!==0xc4 && marker!==0xc8 && marker!==0xcc) || marker===0xf7;
+}
+
+function validScanComponents(frame,scan){
+	var identifiers={};
+	for(var index=0;index<frame.extendeddata.components.length;index++) identifiers[frame.extendeddata.components[index].id]=true;
+	var selected={};
+	for(var index=0;index<scan.extendeddata.components.length;index++){
+		var component=scan.extendeddata.components[index];
+		if(!identifiers[component.id] || selected[component.id]) return false;
+		selected[component.id]=true;
+	}
+	return true;
 }
 
 function validFrameHeader(type, content){

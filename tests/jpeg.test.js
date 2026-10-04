@@ -92,3 +92,55 @@ test('Valid frame variants, including zero height for DNL, remain supported', ()
         assert.equal(header.extendeddata.ncomponents, 1);
     }
 });
+
+test('Images require a frame and scan, and scans must reference unique frame components', () => {
+    const base = jpeg();
+    const frameStart = base.indexOf(Buffer.from([0xff, 0xc0]));
+    const scanStart = base.indexOf(Buffer.from([0xff, 0xda]));
+    const variants = [
+        Buffer.from([0xff,0xd8,0xff,0xd9]),
+        Buffer.from([0xff,0x4f,0xff,0xd9]),
+        Buffer.concat([base.subarray(0, scanStart), Buffer.from([0xff,0xd9])]),
+        Buffer.concat([base.subarray(0, frameStart), base.subarray(frameStart + 13)]),
+        Buffer.concat([base.subarray(0,scanStart), segment(0xda,Buffer.from([2,1,0,1,0,0,63,0])), base.subarray(scanStart+10)])
+    ];
+    const undeclared = Buffer.from(base);
+    undeclared[scanStart+5] = 2;
+    variants.push(undeclared);
+    for (const bytes of variants) assert.equal(parseJPEG(bytes).valid, false);
+    assert.equal(parseJPEG(base).valid, true);
+});
+
+test('An abbreviated tables-only stream remains supported', () => {
+    const table = Buffer.alloc(65, 1);
+    table[0] = 0;
+    for (const data of [segment(0xdb,table), segment(0xfe,Buffer.from('comment'))]) {
+        const bytes = Buffer.concat([Buffer.from([0xff,0xd8]), data, Buffer.from([0xff,0xd9])]);
+        const result = parseJPEG(bytes);
+        assert.equal(result.valid, true);
+        assert.equal(result.tableOnly, true);
+    }
+});
+
+test('DNL supplies zero frame height at the end of the first scan', () => {
+    const base = jpeg();
+    const frameStart = base.indexOf(Buffer.from([0xff,0xc0]));
+    base[frameStart+5] = base[frameStart+6] = 0;
+    assert.equal(parseJPEG(base).valid, false);
+    const prefix = Buffer.concat([base.subarray(0,-2), segment(0xdc,Buffer.from([0,1]))]);
+    const legal = Buffer.concat([prefix, base.subarray(-2)]);
+    const result = parseJPEG(legal);
+    assert.equal(result.valid, true);
+    assert.equal(result.headers.find(header => header.type==='c0').extendeddata.imgh, 1);
+    assert.equal(parseJPEG(Buffer.concat([prefix, Buffer.from([0x3f]), base.subarray(-2)])).valid, false);
+});
+
+test('DNL can redefine an existing line count but must immediately follow the first scan', () => {
+    const base = jpeg();
+    const prefix = base.subarray(0,-2), eoi = base.subarray(-2);
+    const dnl = segment(0xdc,Buffer.from([0,1]));
+    assert.equal(parseJPEG(Buffer.concat([prefix,dnl,eoi])).valid,true);
+    assert.equal(parseJPEG(Buffer.concat([prefix,dnl,dnl,eoi])).valid,false);
+    assert.equal(parseJPEG(Buffer.concat([prefix,segment(0xfe,Buffer.from('comment')),dnl,eoi])).valid,false);
+});
+
