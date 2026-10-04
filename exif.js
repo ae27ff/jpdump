@@ -857,6 +857,55 @@
         }
     }
 
+    function parseXMPDocument(xmpString) {
+        try {
+            var xml = new DOMParser().parseFromString(xmpString, 'text/xml');
+            if (!xml || !xml.documentElement || xml.getElementsByTagName('parsererror').length > 0) return;
+            return xml;
+        } catch (error) {
+            // A malformed optional packet must not prevent other metadata from loading.
+            return;
+        }
+    }
+
+    function repairXMPNamespaces(xmpString) {
+        // Locate the opening root tag, skipping XML declarations, packet PIs and comments.
+        // Quoted attributes may contain '>', so they must be matched as complete values.
+        var rootMatch = /^(?:\s|<\?[\s\S]*?\?>|<!--[\s\S]*?-->)*<([A-Za-z_][\w.:-]*)(?=\s|\/?>)((?:[^"'<>]|"[^"]*"|'[^']*')*)>/.exec(xmpString);
+        if (!rootMatch) return;
+        var rootAttributes = rootMatch[2];
+        var insertionOffset = rootMatch[0].length - rootAttributes.length - 1;
+        // Some encoders omit namespace declarations which the XML parser requires.
+        var namespaces = [
+            ['Iptc4xmpCore', 'http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/'],
+            ['xsi', 'http://www.w3.org/2001/XMLSchema-instance'],
+            ['tiff', 'http://ns.adobe.com/tiff/1.0/'],
+            ['plus', 'http://schemas.android.com/apk/lib/com.google.android.gms.plus'],
+            ['ext', 'http://www.gettyimages.com/xsltExtension/1.0'],
+            ['exif', 'http://ns.adobe.com/exif/1.0/'],
+            ['stEvt', 'http://ns.adobe.com/xap/1.0/sType/ResourceEvent#'],
+            ['stRef', 'http://ns.adobe.com/xap/1.0/sType/ResourceRef#'],
+            ['crs', 'http://ns.adobe.com/camera-raw-settings/1.0/'],
+            ['xapGImg', 'http://ns.adobe.com/xap/1.0/g/img/'],
+            ['Iptc4xmpExt', 'http://iptc.org/std/Iptc4xmpExt/2008-02-29/']
+        ];
+        var attributePattern = /\s+([A-Za-z_][\w.:-]*)\s*=\s*(?:"[^"]*"|'[^']*')/g;
+        var declarations = {};
+        var attribute;
+        while ((attribute = attributePattern.exec(rootAttributes)) !== null) {
+            declarations[attribute[1]] = true;
+        }
+        var missingNamespaces = '';
+        for (var namespaceIndex = 0; namespaceIndex < namespaces.length; namespaceIndex++) {
+            var namespacePrefix = namespaces[namespaceIndex][0];
+            if (!declarations['xmlns:' + namespacePrefix]) {
+                missingNamespaces += ' xmlns:' + namespacePrefix + '="' + namespaces[namespaceIndex][1] + '"';
+            }
+        }
+        if (!missingNamespaces) return;
+        return xmpString.slice(0, insertionOffset) + missingNamespaces + xmpString.slice(insertionOffset);
+    }
+
     function findXMPinJPEG(file) {
         if (!('DOMParser' in self)) return;
 
@@ -865,40 +914,13 @@
             if (payloadLength < signature.length || getStringFromDB(dataView, payloadStart, signature.length) !== signature) return;
 
             var xmpString = getStringFromDB(dataView, payloadStart + signature.length, payloadLength - signature.length);
-            var xmpStart = xmpString.indexOf('<x:xmpmeta');
-            var xmpEnd = xmpString.indexOf('xmpmeta>', xmpStart) + 8;
-            if (xmpStart < 0 || xmpEnd < 8) return;
-            xmpString = xmpString.substring(xmpStart, xmpEnd);
-
-            var indexOfXmp = xmpString.indexOf('x:xmpmeta') + 'x:xmpmeta'.length;
-            // Some encoders omit namespace declarations which the XML parser requires.
-            var namespaces = [
-                ['Iptc4xmpCore', 'http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/'],
-                ['xsi', 'http://www.w3.org/2001/XMLSchema-instance'],
-                ['tiff', 'http://ns.adobe.com/tiff/1.0/'],
-                ['plus', 'http://schemas.android.com/apk/lib/com.google.android.gms.plus'],
-                ['ext', 'http://www.gettyimages.com/xsltExtension/1.0'],
-                ['exif', 'http://ns.adobe.com/exif/1.0/'],
-                ['stEvt', 'http://ns.adobe.com/xap/1.0/sType/ResourceEvent#'],
-                ['stRef', 'http://ns.adobe.com/xap/1.0/sType/ResourceRef#'],
-                ['crs', 'http://ns.adobe.com/camera-raw-settings/1.0/'],
-                ['xapGImg', 'http://ns.adobe.com/xap/1.0/g/img/'],
-                ['Iptc4xmpExt', 'http://iptc.org/std/Iptc4xmpExt/2008-02-29/']
-            ];
-            var rootTagEnd = xmpString.indexOf('>', indexOfXmp);
-            var rootTag = xmpString.substring(0, rootTagEnd + 1);
-            var missingNamespaces = '';
-            for (var namespaceIndex = 0; namespaceIndex < namespaces.length; namespaceIndex++) {
-                var namespacePrefix = namespaces[namespaceIndex][0];
-                var namespacePattern = new RegExp('(?:^|\\s)xmlns:' + namespacePrefix + '\\s*=');
-                if (!namespacePattern.test(rootTag)) {
-                    missingNamespaces += ' xmlns:' + namespacePrefix + '="' + namespaces[namespaceIndex][1] + '"';
-                }
+            var xml = parseXMPDocument(xmpString);
+            if (!xml) {
+                var repaired = repairXMPNamespaces(xmpString);
+                if (typeof repaired === 'undefined') return;
+                xml = parseXMPDocument(repaired);
             }
-            xmpString = xmpString.slice(0, indexOfXmp) + missingNamespaces + xmpString.slice(indexOfXmp);
-
-            var dom = new DOMParser();
-            return xml2Object(dom.parseFromString(xmpString, 'text/xml'));
+            if (xml) return xml2Object(xml);
         });
         return result;
     }
