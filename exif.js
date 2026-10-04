@@ -535,6 +535,7 @@
             entryOffset = dirStart + i*12 + 2;
             tag = strings[file.getUint16(entryOffset, !bigEnd)];
             if (!tag && debug) console.log("Unknown tag: " + file.getUint16(entryOffset, !bigEnd));
+            if (!tag) continue;
             tags[tag] = readTagValue(file, entryOffset, tiffStart, dirStart, bigEnd);
         }
         return tags;
