@@ -8,8 +8,8 @@ function processSOF0(data){
 	sof0.ncomponents=data.charCodeAt(p+5)
 	sof0.ncomponentsstr=getSOF0ComponentsStr(sof0.ncomponents)
 	p=6
-	pe=p+3*sof0.ncomponents
-	for(q=p;q<pe;q+=3){
+	var pe=p+3*sof0.ncomponents
+	for(var q=p;q<pe;q+=3){
 		sof0.components.push(processSOF0Component(data.substr(q,3)));
 	}
 	return sof0
