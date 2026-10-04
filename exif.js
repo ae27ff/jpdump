@@ -475,36 +475,49 @@
     };
     function readIPTCData(dataView, startOffset, sectionLength){
         var data = {};
-        var fieldValue, fieldName, dataSize, segmentType, segmentSize;
+        var fieldValue, fieldName, dataSize, segmentType;
         var segmentStartPos = startOffset;
         var sectionEnd = startOffset + sectionLength;
         if (startOffset < 0 || sectionLength < 0 || sectionEnd > dataView.byteLength) return data;
         while(segmentStartPos + 5 <= sectionEnd) {
-            if(dataView.getUint8(segmentStartPos) === 0x1C && dataView.getUint8(segmentStartPos+1) === 0x02){
-                segmentType = dataView.getUint8(segmentStartPos+2);
-                if(segmentType in IptcFieldMap) {
-                    dataSize = dataView.getUint16(segmentStartPos+3);
-                    segmentSize = dataSize + 5;
-                    if(segmentStartPos + segmentSize > sectionEnd) return data;
-                    fieldName = IptcFieldMap[segmentType];
-                    fieldValue = getStringFromDB(dataView, segmentStartPos+5, dataSize);
-                    // Check if we already stored a value with this name
-                    if(data.hasOwnProperty(fieldName)) {
-                        // Value already stored with this name, create multivalue field
-                        if(data[fieldName] instanceof Array) {
-                            data[fieldName].push(fieldValue);
-                        }
-                        else {
-                            data[fieldName] = [data[fieldName], fieldValue];
-                        }
+            if (dataView.getUint8(segmentStartPos) !== 0x1C) return data;
+            var recordNumber = dataView.getUint8(segmentStartPos + 1);
+            segmentType = dataView.getUint8(segmentStartPos + 2);
+            dataSize = dataView.getUint16(segmentStartPos + 3);
+            var valueStart = segmentStartPos + 5;
+            if (dataSize & 0x8000) {
+                // Extended IIM lengths encode the number of following length octets.
+                var lengthOctets = dataSize & 0x7FFF;
+                if (lengthOctets === 0 || lengthOctets > sectionEnd - valueStart) return data;
+                var maxDataSize = sectionEnd - valueStart - lengthOctets;
+                dataSize = 0;
+                for (var lengthIndex = 0; lengthIndex < lengthOctets; lengthIndex++) {
+                    dataSize = dataSize * 256 + dataView.getUint8(valueStart + lengthIndex);
+                    // Bound the value while accumulating it, before it can overflow.
+                    if (dataSize > maxDataSize) return data;
+                }
+                valueStart += lengthOctets;
+            }
+            if (dataSize > sectionEnd - valueStart) return data;
+            if (recordNumber === 2 && segmentType in IptcFieldMap) {
+                fieldName = IptcFieldMap[segmentType];
+                fieldValue = getStringFromDB(dataView, valueStart, dataSize);
+                // Check if we already stored a value with this name
+                if(data.hasOwnProperty(fieldName)) {
+                    // Value already stored with this name, create multivalue field
+                    if(data[fieldName] instanceof Array) {
+                        data[fieldName].push(fieldValue);
                     }
                     else {
-                        data[fieldName] = fieldValue;
+                        data[fieldName] = [data[fieldName], fieldValue];
                     }
                 }
-
+                else {
+                    data[fieldName] = fieldValue;
+                }
             }
-            segmentStartPos++;
+            // Every dataset has a length, including unknown and binary datasets.
+            segmentStartPos = valueStart + dataSize;
         }
         return data;
     }
