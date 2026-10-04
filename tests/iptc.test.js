@@ -24,13 +24,16 @@ function readIPTC(...datasets) {
 
 function iptcSegment(...datasets) {
     const data = Buffer.concat(datasets);
+    return segment(0xed, Buffer.concat([Buffer.from('Photoshop 3.0\0', 'ascii'), iptcResource(data)]));
+}
+
+function iptcResource(data) {
     const resource = Buffer.from([0x38, 0x42, 0x49, 0x4d, 0x04, 0x04, 0, 0, 0, 0, 0, 0]);
     resource.writeUInt32BE(data.length, 8);
-    const payload = Buffer.concat([
-        Buffer.from('Photoshop 3.0\0', 'ascii'), resource, data,
+    return Buffer.concat([
+        resource, data,
         data.length % 2 ? Buffer.from([0]) : Buffer.alloc(0)
     ]);
-    return segment(0xed, payload);
 }
 
 test('IPTC ignores record signatures inside a binary JPEG preview', () => {
@@ -95,4 +98,16 @@ test('Metadata after a JPEG-LS bit-stuffed scan remains reachable', () => {
     const bytes = fs.readFileSync(path.join(__dirname, 'fixtures/t8nde0.jls'));
     const image = readMetadata(Buffer.concat([bytes.subarray(0,-2), iptcSegment(dataset(2,25,'REAL')), bytes.subarray(-2)]));
     assert.equal(image.iptcdata.keywords, 'REAL');
+});
+
+test('Empty and malformed IPTC resources do not hide later APP13 metadata', () => {
+    for (const first of [Buffer.alloc(0), Buffer.from([0]), Buffer.from([0x1c,2,25,0,100]), dataset(2,250,'unknown')]) {
+        const image = readMetadata(jpeg(iptcSegment(first), iptcSegment(dataset(2,25,'REAL'))));
+        assert.equal(image.iptcdata.keywords, 'REAL');
+    }
+});
+
+test('Empty IPTC resources do not hide later resources within the same APP13', () => {
+    const payload = Buffer.concat([Buffer.from('Photoshop 3.0\0'), iptcResource(Buffer.alloc(0)), iptcResource(dataset(2,25,'REAL'))]);
+    assert.equal(readMetadata(jpeg(segment(0xed,payload))).iptcdata.keywords, 'REAL');
 });

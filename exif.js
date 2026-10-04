@@ -455,7 +455,8 @@
                 if (resourceEnd > end || paddedResourceEnd > end) return;
 
                 if (resourceId === 0x0404) {
-                    return readIPTCData(dataView, resourceStart, resourceLength);
+                    var iptc = readIPTCData(dataView, resourceStart, resourceLength);
+                    if (Object.keys(iptc).length > 0) return iptc;
                 }
                 offset = paddedResourceEnd;
             }
