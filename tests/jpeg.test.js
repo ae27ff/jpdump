@@ -25,3 +25,10 @@ test('APP1 metadata has the correct application marker label', () => {
     const result = parseJPEG(jpeg(segment(0xe1, Buffer.from('metadata'))));
     assert.equal(result.headers.find(header => header.type === 'e1').desc.shortname, 'APP1');
 });
+
+test('Parsing does not log binary image data or retain header objects in the console', () => {
+    const logged = [];
+    const result = parseJPEG(jpeg(), { console: { log: (...args) => logged.push(args), error() {} } });
+    assert.equal(result.valid, true);
+    assert.deepEqual(logged, []);
+});

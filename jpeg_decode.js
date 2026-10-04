@@ -2,8 +2,6 @@
 
 
 function processJPEG(data){
-        console.log(data);
-        console.log(typeof data);
 	var info={
 		valid:true,
 		filesize:data.length,
@@ -15,7 +13,6 @@ function processJPEG(data){
 
 	for(var p=0;p<data.length;p++){
 		var header=processHeader(data,p)
-		console.log(header)
 		if(p>0){
 			var prevheader=info.headers.last();
 			finalizeHeaderContent(data,prevheader,p);
@@ -25,7 +22,6 @@ function processJPEG(data){
 
 		if((p==0 && (header.type!="d8" && header.type!="4f")) || !header.valid){
 			//console.log((p==0 && header.type!="d8"))
-			console.log("invalid header at position 0")
 			info.valid=false;
 			break;
 		}
@@ -56,7 +52,6 @@ function processJPEG(data){
 			break;
 		}
 
-		console.log("advancing position "+p+" -> "+(nextp-1))
 		if((nextp-1) < p){
 			console.error("error: parsing loop detected")
 			break;
@@ -77,7 +72,6 @@ function processJPEG(data){
 		info.extraneous=data.substring(info.nextp)
 	}
 
-	console.log(info)
 	return info;
 }
 
