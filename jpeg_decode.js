@@ -124,6 +124,33 @@ function scanJPEG(data,ps){
 	return findMarkerStart(data,ps)
 }
 
+function isSOFMarker(type){
+	var marker=hexdec(type);
+	return (marker>=0xc0 && marker<=0xcf && marker!==0xc4 && marker!==0xc8 && marker!==0xcc) || marker===0xf7;
+}
+
+function validFrameHeader(type, content){
+	if (content.length<6) return false;
+	var count=content.charCodeAt(5);
+	if (count<1 || content.length!==6+3*count || hexdec(get2bytes(content,3))===0) return false;
+	var marker=hexdec(type);
+	var precision=content.charCodeAt(0);
+	var lossless=(marker & 3)===3 || marker===0xf7;
+	if (type==='c0' ? precision!==8 : (lossless ? precision<2 || precision>16 : precision!==8 && precision!==12)) return false;
+	if ((marker & 3)===2 && count>4) return false;
+	var identifiers={};
+	for (var index=6; index<content.length; index+=3){
+		var id=content.charCodeAt(index);
+		var sampling=content.charCodeAt(index+1);
+		var horizontal=sampling>>4, vertical=sampling & 15;
+		var table=content.charCodeAt(index+2);
+		if (identifiers[id] || horizontal<1 || horizontal>4 || vertical<1 || vertical>4 || (lossless ? table!==0 : table>3)) return false;
+		if (marker===0xf7 && sampling!==0x11) return false;
+		identifiers[id]=true;
+	}
+	return true;
+}
+
 function processHeader(data,p){
 	var header={valid:true,magic:"00",type:"00",haslen:true,haslenbytes:true,p:p,len:0,actuallen:0,contentp:(p+2),content:"",nextp:(p+2),contentlen:0,desc:{},hasextendeddata:false,extendedtype:"",extendeddata:{},markerwidth:2}
 	if(p>=data.length || data.charCodeAt(p)!==0xff){
@@ -204,8 +231,8 @@ function processHeader(data,p){
 	}
 	//console.log(header.type+header.content+isJFIF(header.content))
 	//if(header.type=="c0"){
-	if(dlb>=0xc0 && dlb<=0xc3){
-		if(header.content.length<6 || header.content.length!==6+3*header.content.charCodeAt(5)){
+	if(isSOFMarker(header.type)){
+		if(!validFrameHeader(header.type,header.content)){
 			header.valid=false;
 			return header;
 		}
