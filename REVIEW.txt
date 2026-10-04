@@ -128,3 +128,97 @@ Scope remains structural/metadata inspection, including abbreviated streams.
 The parser does not decode entropy/pixels or implement full validation of every
 JPEG/JPEG-LS/JPEG 2000 extension. Passing these checks is not a conformance
 certificate or a proof that the application has no possible remaining bugs.
+
+Three-way review and fixes (2026-10-04)
+
+Participants: the primary Codex reviewer, GPT-5.6 Sol, and GPT-6 Sol. Each reviewed
+the complete source and tests independently over repeated passes. Candidates were
+reproduced and checked against the published specifications before changes were
+accepted. All three agree with the final implementation. The final complete pass
+found no further actionable correctness bugs within this inspector's scope.
+
+Additional agreed changes:
+- Nested accordions use natural height so expanded metadata and wrapped text are
+  visible. Independent collapsing remains supported; fixed-height animation is
+  replaced by immediate expansion. Verified in the real browser.
+- EXIF DigitalZoomRatio has its standard name; EXIF identification requires the
+  full six-byte signature. JPEG 2000 CRG and recovered EOC markers have defined
+  labels. The upload filter includes the supported .jls/image/jls format.
+- Classic JPEG reserved marker codes are flagged. DNL has its exact two-byte
+  payload; JPEG-LS retains its wider line counts. EXP with no expansion is flagged.
+- JPEG-LS LSE cannot change a nonzero declared dimension or resolve unknown
+  height too late. Legal subsampling is accepted; sample-interleaved components
+  must have equal actual extents, including after DNL resolves height. Component
+  ordering, marker families, mapping entry widths/counts, adjacent continuations,
+  and point-transform/mapping compatibility are checked. External abbreviated
+  mapping tables and mapping-table-only streams remain supported.
+- JPEG 2000 COD/COC fields, precincts, QCD/QCC steps, component overrides and
+  precedence are checked. Quantizers match reversible/irreversible transforms in
+  both directions. MCT requires compatible precision, separation and wavelets.
+  Shared tile defaults are cached to avoid repeated component validation.
+- Known JPEG 2000 header placement, multiplicity and tile-part restrictions are
+  checked. COM/CRG/POC and TLM/PLM/PLT/PPM/PPT bodies are checked with indexed
+  fragment ordering, legal continuations and PPM/PPT exclusion. TLM entries match
+  actual tile parts and Psot; PLM/PPM group counts match tile parts. Pointer data
+  stays compact instead of allocating an object for every length entry.
+- Invalid input is inspected where trustworthy marker boundaries remain. Later
+  headers are shown as recovered/unverified, and incomplete segments retain their
+  declared length, available raw bytes and complete SOF/SOS fields. Incorrect
+  JPEG 2000 Psot values do not hide a safely located EOC. Unknown boundaries stop
+  traversal without guessing markers inside payloads. The UI shows warnings and
+  distinguishes invalid structure, truncation, recovery and unparsed data.
+- Truncated APP1 segments can supply complete EXIF fields through a bounded
+  reader and still show the EXIF accordion. Truncated APP13 IPTC resources retain
+  earlier complete datasets and tolerate missing final padding. No new segment or
+  resource boundary is inferred beyond the available data.
+
+Reconciled specification questions:
+- An earlier DNL length interpretation was based on merged PDF text rows. Direct
+  inspection of the published T.81 table confirms Ld=4. JPEG-LS extends this.
+- The published T.87 allows DNL to redefine height; a draft's stricter rule was
+  not applied. Its prohibition on changing nonzero dimensions concerns LSE.
+- T.800 permits retained extra quantizer steps after subband truncation and POC
+  in later tile parts when first-part POC exists. Generic POC field bounds were
+  preserved without inventing additional component/layer limits.
+- T.800 A.1.3 requires unassigned bits to be zero, while a decoder ignores them.
+  Nonzero reversible-quantizer low bits and unassigned Stlm bits are flagged but
+  their data remains available. Table A.32 explicitly defines CEpoc=0 as 256 for
+  both field widths. PLM minimum Lplm is 4, and an Nplm group may start in one
+  marker and continue in another without interrupting a packet-length number.
+- Indexed pointer fragments need not be physically ordered or have contiguous
+  index values. They are concatenated in numeric order. T.81 B.5's subsection
+  list identifies DQT/DHT/COM/APP; it does not authorize DRI/DNL-only streams.
+
+Final validation for the three-way changes:
+- 121/121 tests pass with no skips. Command:
+  node --test --test-isolation=none --test-reporter=dot tests/*.test.js
+  The existing Windows XML helper required permission to spawn PowerShell.
+- All 24 JavaScript files pass node --check; git diff --check passes.
+- 62 generated Pillow/OpenJPEG files pass: grayscale/RGB/CMYK JPEG, multiple
+  dimensions and qualities, sequential/progressive, and tiled/untiled reversible
+  and irreversible JPEG 2000. No packages or install scripts were added.
+- The primary reviewer ran 67,956 truncation/byte-mutation cases across baseline
+  JPEG, official CharLS JPEG-LS and OpenJPEG fixtures without exceptions. GPT-6
+  Sol additionally ran 20,000 fixture mutations, 50,000 arbitrary buffers and
+  185 EXIF truncation/overdeclaration cases. GPT-5.6 Sol ran 4,000 arbitrary
+  buffers and 2,000 fixture mutations without exceptions.
+- Browser verification shows complete nested accordion height, recovered 1x1
+  dimensions from a truncated SOF, available content links and visible truncation
+  warnings, with no browser console errors. Temporary servers/tabs were closed.
+- One commit per changed file is used. The user's pre-existing .gitignore edit
+  remains untouched and excluded from all commits.
+
+Additional primary references:
+Published JPEG-LS T.87:
+https://www.itu.int/rec/T-REC-T.87/en
+Published JPEG 2000 T.800:
+https://www.itu.int/rec/dologin_pub.asp?id=T-REC-T.800-201511-S!!PDF-E&lang=e&type=items
+EXIF tag names:
+https://www.cipa.jp/std/documents/e/DC-008-2010_E.pdf
+JPEG-LS media type:
+https://www.iana.org/assignments/media-types/image/jls
+
+The tool remains a structural/metadata inspector. It does not decode entropy or
+pixels, parse the JP2 container, or reconstruct extended multipart XMP. A clean
+three-way review is not a full conformance certificate or proof of zero latent
+bugs. Recoverable data is retained even when the structure is invalid/incomplete.
