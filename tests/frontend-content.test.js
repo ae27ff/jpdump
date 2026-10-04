@@ -9,7 +9,7 @@ const { loadJPEG, jpeg } = require('./jpeg-helpers');
 function element() {
     const attributes = {};
     return {
-        innerHTML: '', style: {}, children: [], href: '',
+        innerHTML: '', style: {}, children: [], href: '', classList: { add() {}, toggle() {} },
         appendChild(child) { this.children.push(child); },
         setAttribute(name, value) { attributes[name] = String(value); },
         getAttribute(name) { return attributes[name] || null; },
@@ -30,7 +30,7 @@ function loadFrontend(navigator = {}) {
             revokeObjectURL(url) { revoked.push(url); urls.delete(url); }
         } },
         document: { createElement: element, getElementById: id => elements[id] ||= element() },
-        accordion_create(title, body) { const root=element(); root.innerHTML=typeof body==='string' ? body : ''; root.children=[element(),element()]; return root; }
+        accordion_create(title, body) { const root=element(); root.body=body; root.innerHTML=typeof body==='string' ? body : ''; root.children=[element(),element()]; return root; }
     });
     for (const file of ['jpeg_util.js','frontend.js']) vm.runInContext(fs.readFileSync(path.join(projectRoot,file),'utf8'),context);
     return { context, elements, urls, revoked, encoded };
@@ -140,4 +140,44 @@ test('Current downloads remain usable until replacement, including repeated clic
     assert.equal(ui.context.downloadContent(0,oldLink,0),false);
     assert.equal(ui.urls.size,0);
     assert.deepEqual(ui.revoked,[url]);
+});
+
+test('EXIF byte arrays cannot corrupt the surrounding header rendering loop', () => {
+    const ui=loadFrontend();
+    vm.runInContext(fs.readFileSync(path.join(projectRoot,'accordion.js'),'utf8'),ui.context);
+    ui.context.EXIF={readFromBinaryFile:() => ({UserComment:[]})};
+    const info=loadJPEG().processJPEG(jpeg().toString('latin1'));
+    info.headers[1].hasextendeddata=true;
+    info.headers[1].extendedtype='EXIF';
+    ui.context.displayResults(info);
+    assert.equal(ui.elements.image.children[1].children[1].children.length,info.headers.length);
+    assert.equal(ui.elements.image.children[1].children[0].type,'button');
+    assert.equal(ui.context.i,undefined);
+    assert.equal(ui.context.array2string([0,128,255]),'\0\x80\xff');
+    assert.equal(ui.context.hexdump('abc',16),'61 62 63 ');
+    assert.equal(ui.context.p,undefined);
+});
+
+test('Utility loading preserves native literal replaceAll and converts bytes across chunk boundaries', () => {
+    const ui=loadFrontend();
+    assert.equal(vm.runInContext("'a.a'.replaceAll('.', '-')",ui.context),'a-a');
+    const bytes=Uint8Array.from({length:70000},(_,index)=>index%256);
+    assert.equal(ui.context.array2string(bytes),Buffer.from(bytes).toString('latin1'));
+});
+
+test('Object metadata is escaped and handles a hasOwnProperty field safely', () => {
+    const ui=loadFrontend();
+    const html=ui.context.displayObjectInfo({hasOwnProperty:'value',label:'<img src=x onerror=alert(1)>'});
+    assert.ok(html.includes('hasOwnProperty'));
+    assert.ok(html.includes('&lt;img'));
+    assert.equal(html.includes('<img'),false);
+});
+
+test('Dimensions remain visible for codecs the browser cannot preview', () => {
+    const ui=loadFrontend();
+    assert.ok(ui.context.displayImageInfo({valid:true,dimensions:{width:65536,height:1}}).includes('65536x1'));
+    const html=ui.context.displayScanComponentInfo({id:1,dctn:1,actn:2},'jpeg-ls');
+    assert.ok(html.includes('Mapping Table #'));
+    assert.ok(html.includes('18'));
+    assert.equal(html.includes('AC Table'),false);
 });
