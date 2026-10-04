@@ -34,6 +34,7 @@ function jpeg_headerdump_name(header){
 	out=jpeg_headerdump_name_repl("61",["J2K-PPT","Packed Packet-headers Tile-part header",""],header,out);
 	out=jpeg_headerdump_name_repl("91",["J2K-SOP","Start of Packet",""],header,out);
 	out=jpeg_headerdump_name_repl("92",["J2K-EPH","End of Packet Header",""],header,out);
+	out=jpeg_headerdump_name_repl("63",["J2K-CRG","Component Registration",""],header,out);
 	out=jpeg_headerdump_name_repl("64",["J2K-COM","Comment",""],header,out);
 
 	out=jpeg_headerdump_name_replN(0xc0,0xc3,0xc0,["SOF%N%","Start of DCT Frame %N%",""],header,out);
