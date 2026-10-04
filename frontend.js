@@ -250,11 +250,9 @@ function displayEXIFInfo(exif){
 			}
 		}
 		if(exif[prop] instanceof Array){
-			if(isByteArray(exif[prop])){
-				html+=displayDetail(prop,getContentURL(array2string(exif[prop])))+"</ul><br><ul>"
-			}else{
-				html+=displayDetailPre(prop,JSON.stringify(exif[prop]))+"</ul><br><ul>"
-			}
+			html+=displayDetailPre(prop,JSON.stringify(exif[prop]));
+			if(isByteArray(exif[prop])) html+=displayDetail(prop+" Raw bytes",getContentURL(array2string(exif[prop])));
+			html+="</ul><br><ul>";
 		}else{
 			html+=displayDetailPre(prop,exif[prop])+"</ul><br><ul>"
 		}
