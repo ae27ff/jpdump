@@ -18,23 +18,7 @@ function processJPEG(data){
 		console.log(header)
 		if(p>0){
 			var prevheader=info.headers.last();
-			if(prevheader.haslen || (hexdec(prevheader.type)>=0xd0 && hexdec(prevheader.type)<=0xd7)){//allow content for RST market sections
-				console.log("prevtype: "+prevheader.type)
-				console.log("prevoffset: "+prevheader.p)
-				console.log("nextoffset: "+p)
-				prevheader.actuallen=(p-prevheader.p)-prevheader.markerwidth;//exclude the previous marker, not the following marker
-				prevheader.contentlen=prevheader.actuallen;
-				if(prevheader.haslenbytes){
-					prevheader.contentlen-=2;//if we scanned in the data and the header has no length bytes, don't subtract them!
-				}
-				prevheader.content=data.substr(prevheader.contentp,prevheader.contentlen);
-				if(prevheader.actuallen==0) prevheader.contentlen=0
-                                
-                                if(prevheader.type=="da"){//postprocess scan header
-                                    prevheader.extendeddata = postprocessSOS(prevheader);
-                                }
-                                
-			}
+			finalizeHeaderContent(data,prevheader,p);
 			//console.log(p+" "+prevheader.p+" "+prevheader.actuallen)
 		}
 		info.headers.push(header);
@@ -79,6 +63,10 @@ function processJPEG(data){
 		}
 		p=nextp-1
 	}
+	if(info.headers.length>0){
+		var lastheader=info.headers.last();
+		if(lastheader.valid && lastheader.nextp<=data.length) finalizeHeaderContent(data,lastheader,data.length);
+	}
 
 	if(info.headers.length===0 || info.headers[info.headers.length-1].type!=="d9"){
 		info.valid=false;
@@ -91,6 +79,16 @@ function processJPEG(data){
 
 	console.log(info)
 	return info;
+}
+
+function finalizeHeaderContent(data,header,endp){
+	if(!(header.haslen || (hexdec(header.type)>=0xd0 && hexdec(header.type)<=0xd7))) return;
+	header.actuallen=(endp-header.p)-header.markerwidth;
+	header.contentlen=header.actuallen;
+	if(header.haslenbytes) header.contentlen-=2;
+	header.content=data.substr(header.contentp,header.contentlen);
+	if(header.actuallen==0) header.contentlen=0;
+	if(header.type==="da") header.extendeddata=postprocessSOS(header);
 }
 
 
