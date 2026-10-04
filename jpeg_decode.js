@@ -7,7 +7,7 @@ function processJPEG(data){
 	var info={
 		valid:true,
 		filesize:data.length,
-		nextp:-1,
+		nextp:0,
 		headers:[],
 		hasextraneous:false,
 		extraneous:""
