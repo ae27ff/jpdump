@@ -199,6 +199,7 @@ function displayImageInfo(info){
 	var html="<ul>"+
 	displayDetail("Filesize",info.filesize)+
 	displayDetail("Datasize",info.nextp)+
+	displayDetail("JPEG Structure",info.valid ? "Valid" : '<span class="warning">Invalid</span>')+
 	displayDetail("Resolution",getPreviewDims());
 
 	if(info.hasextraneous){

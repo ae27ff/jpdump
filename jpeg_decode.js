@@ -63,6 +63,10 @@ function processJPEG(data){
 		p=nextp-1
 	}
 
+	if(info.headers.length===0 || info.headers[info.headers.length-1].type!=="d9"){
+		info.valid=false;
+	}
+
 	if(info.filesize>info.nextp){
 		info.hasextraneous=true
 		info.extraneous=data.substring(info.nextp)
@@ -146,11 +150,23 @@ function processHeader(data,p){
 
 
 
+	if(codep+2>=data.length){
+		header.valid=false;
+		return header;
+	}
 	header.contentp=codep+3
 	hb=pad(data.charCodeAt(codep+1).toString(16),2)
 	lb=pad(data.charCodeAt(codep+2).toString(16),2)
 	header.len=parseInt(hb+lb,16)
+	if(!isFinite(header.len) || header.len<2){
+		header.valid=false;
+		return header;
+	}
 	header.nextp=codep+1+header.len
+	if(header.nextp>data.length){
+		header.valid=false;
+		return header;
+	}
 	if(header.haslenbytes) header.contentlen=header.len-2
 
 	header.content=data.substr(header.contentp,header.contentlen);//will be revised by processing above
