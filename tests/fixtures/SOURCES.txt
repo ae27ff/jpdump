@@ -1,0 +1,5 @@
+t8nde0.jls: CharLS JPEG-LS conformance test image (9421 bytes).
+Source: https://github.com/team-charls/charls/blob/main/test/data/conformance/t8nde0.jls
+Downloaded from the official team-charls repository for parser regression testing.
+JPEG-LS marker detection reference:
+https://github.com/team-charls/charls/blob/main/src/scan_decoder.hpp

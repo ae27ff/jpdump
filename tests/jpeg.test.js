@@ -1,5 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const fs = require('node:fs');
+const path = require('node:path');
 const { loadJPEG, parseJPEG, jpeg, segment } = require('./jpeg-helpers');
 
 test('Empty and non-JPEG inputs have a nonnegative parsed size', () => {
@@ -144,3 +146,23 @@ test('DNL can redefine an existing line count but must immediately follow the fi
     assert.equal(parseJPEG(Buffer.concat([prefix,segment(0xfe,Buffer.from('comment')),dnl,eoi])).valid,false);
 });
 
+test('The CharLS conformance JPEG-LS scan preserves bit-stuffed bytes and reaches EOI', () => {
+    const bytes = fs.readFileSync(path.join(__dirname, 'fixtures/t8nde0.jls'));
+    const result = parseJPEG(Buffer.concat([bytes, Buffer.from('trailer')]));
+    assert.equal(result.valid, true);
+    assert.equal(result.nextp, bytes.length);
+    assert.equal(result.extraneous, 'trailer');
+    const scan = result.headers.find(header => header.type==='da');
+    assert.equal(scan.extendeddata.scanCoding, 'jpeg-ls');
+    const raw = bytes.subarray(scan.nextp, -2).toString('latin1');
+    assert.ok(raw.includes('\xff\x7f'));
+    assert.equal(scan.extendeddata.hcdata, raw);
+});
+
+test('JPEG-LS FF00 is preserved while ordinary JPEG byte stuffing is removed', () => {
+    const frame = segment(0xf7, Buffer.from([8,0,1,0,1,1,1,0x11,0]));
+    const scan = segment(0xda, Buffer.from([1,1,0,0,0,0]));
+    const bytes = Buffer.concat([Buffer.from([0xff,0xd8]), frame, scan, Buffer.from([0xff,0,0xff,0xd9])]);
+    assert.equal(parseJPEG(bytes).headers.find(header => header.type==='da').extendeddata.hcdata, '\xff\0');
+    assert.equal(loadJPEG().unstuffSOSHCData('\xff\0'), '\xff');
+});

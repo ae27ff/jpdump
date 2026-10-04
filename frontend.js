@@ -285,7 +285,7 @@ function displayScanInfo(sos){
     displayDetail("Start of Spectral/Predictive Selection",sos.sss)+
     displayDetail("End of Spectral Selection",sos.ess)+
     displayDetail("Successive Approximate Bit Positions",sos.sabp)+"</ul><br><ul>"+
-    displayDetail("Huffman-coded data (destuffed)",getContentURL(sos.hcdata))+""
+    displayDetail(sos.scanCoding==='jpeg-ls' ? "JPEG-LS coded data (bit-stuffed)" : "Entropy-coded data (destuffed)",getContentURL(sos.hcdata))+""
     //html+="</ul><br><ul>"+
     return html+"</ul>";
 }

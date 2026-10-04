@@ -813,8 +813,8 @@
 
         var offset = 2;
         var inScan = false;
+        var jpegLS = false;
         while (offset < length) {
-            var wasInScan = inScan;
             if (inScan) {
                 while (offset < length && dataView.getUint8(offset) !== 0xFF) offset++;
                 if (offset >= length) return;
@@ -827,7 +827,7 @@
             if (codeOffset >= length) return;
 
             var marker = dataView.getUint8(codeOffset);
-            if (marker === 0x00 && inScan) {
+            if (inScan && (jpegLS ? marker < 0x80 : marker === 0x00)) {
                 offset = codeOffset + 1;
                 continue;
             }
@@ -853,7 +853,9 @@
             }
 
             offset = segmentEnd;
-            if (marker === 0xDA || (wasInScan && marker === 0xDC)) inScan = true;
+            if (marker === 0xF7) jpegLS = true;
+            else if (marker >= 0xC0 && marker <= 0xCF && marker !== 0xC4 && marker !== 0xC8 && marker !== 0xCC) jpegLS = false;
+            if (marker === 0xDA) inScan = true;
         }
     }
 

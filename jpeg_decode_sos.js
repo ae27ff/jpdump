@@ -105,7 +105,9 @@ function postprocessSOS(header){
     
     //If the huffman coding scheme needed to write a 0xFF byte, then it writes a 0xFF followed by a 0x00 -- a process known as adding a stuff byte.
     //https://www.impulseadventure.com/photo/jpeg-huffman-coding.html
-    header.extendeddata.hcdata = unstuffSOSHCData(header.extendeddata.hcdata);
+    header.extendeddata.scanCoding = header.scanCoding || 'jpeg';
+    // JPEG-LS stuffs one bit, not a complete byte. Preserve its encoded bytes.
+    if(header.extendeddata.scanCoding!=='jpeg-ls') header.extendeddata.hcdata = unstuffSOSHCData(header.extendeddata.hcdata);
     
     
     

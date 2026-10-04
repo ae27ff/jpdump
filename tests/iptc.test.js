@@ -1,5 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const fs = require('node:fs');
+const path = require('node:path');
 const { jpeg, segment, readMetadata } = require('./metadata-helpers');
 
 function dataset(record, type, value, lengthOctets = 0) {
@@ -17,6 +19,10 @@ function dataset(record, type, value, lengthOctets = 0) {
 }
 
 function readIPTC(...datasets) {
+    return readMetadata(jpeg(iptcSegment(...datasets))).iptcdata;
+}
+
+function iptcSegment(...datasets) {
     const data = Buffer.concat(datasets);
     const resource = Buffer.from([0x38, 0x42, 0x49, 0x4d, 0x04, 0x04, 0, 0, 0, 0, 0, 0]);
     resource.writeUInt32BE(data.length, 8);
@@ -24,7 +30,7 @@ function readIPTC(...datasets) {
         Buffer.from('Photoshop 3.0\0', 'ascii'), resource, data,
         data.length % 2 ? Buffer.from([0]) : Buffer.alloc(0)
     ]);
-    return readMetadata(jpeg(segment(0xed, payload))).iptcdata;
+    return segment(0xed, payload);
 }
 
 test('IPTC ignores record signatures inside a binary JPEG preview', () => {
@@ -83,4 +89,10 @@ test('IPTC rejects empty, truncated, and oversized extended lengths', () => {
 
 test('IPTC does not resynchronize inside a malformed dataset boundary', () => {
     assert.equal(readIPTC(dataset(2, 25, 'REAL'), Buffer.from([0]), dataset(2, 25, 'FAKE')).keywords, 'REAL');
+});
+
+test('Metadata after a JPEG-LS bit-stuffed scan remains reachable', () => {
+    const bytes = fs.readFileSync(path.join(__dirname, 'fixtures/t8nde0.jls'));
+    const image = readMetadata(Buffer.concat([bytes.subarray(0,-2), iptcSegment(dataset(2,25,'REAL')), bytes.subarray(-2)]));
+    assert.equal(image.iptcdata.keywords, 'REAL');
 });

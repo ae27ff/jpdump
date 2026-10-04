@@ -44,6 +44,7 @@ function processJPEG(data){
 			}
 			if(header.type==='da'){
 				if(!frame || !validScanComponents(frame,header)) header.valid=false;
+				header.scanCoding=frame && frame.type==='f7' ? 'jpeg-ls' : 'jpeg';
 				frameScans++;
 				scans++;
 			}
@@ -76,8 +77,8 @@ function processJPEG(data){
 				nextp=scanJPEGEnd(data,nextp);
 			}
 		}
-		if(header.type=="da") nextp=scanJPEG(data,nextp)
-		if(hexdec(header.type)>=0xd0 && hexdec(header.type)<=0xd7) nextp=scanJPEG(data,nextp)//fixed: support restart markers
+		if(header.type=="da") nextp=scanJPEG(data,nextp,header.scanCoding==='jpeg-ls')
+		if(hexdec(header.type)>=0xd0 && hexdec(header.type)<=0xd7) nextp=scanJPEG(data,nextp,frame && frame.type==='f7')//fixed: support restart markers
 		if(info.nextp<nextp) info.nextp=nextp
 		if(header.type=="d9"){
 			info.nextp=nextp
@@ -121,13 +122,13 @@ function finalizeHeaderContent(data,header,endp){
 }
 
 
-function findMarkerStart(data,ps){
+function findMarkerStart(data,ps,jpegLS){
 	for(var p=ps;p<data.length;p++){
 		if(data.charCodeAt(p)!==0xff) continue;
 		var codep=p+1;
 		while(codep<data.length && data.charCodeAt(codep)===0xff) codep++;
 		if(codep>=data.length) return data.length;
-		if(data.charCodeAt(codep)===0x00){
+		if(jpegLS ? data.charCodeAt(codep)<0x80 : data.charCodeAt(codep)===0x00){
 			p=codep;
 			continue;
 		}
@@ -155,8 +156,8 @@ function scanJPEGEnd(data,ps){
 	return data.length
 }
 
-function scanJPEG(data,ps){
-	return findMarkerStart(data,ps)
+function scanJPEG(data,ps,jpegLS){
+	return findMarkerStart(data,ps,jpegLS)
 }
 
 function isSOFMarker(type){
