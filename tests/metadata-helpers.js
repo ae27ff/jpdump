@@ -31,7 +31,7 @@ function domNode(model) {
     node.childNodes = (model.childNodes || []).map(domNode);
     const relink = () => {
         node.firstChild = node.childNodes[0] || null;
-        node.childNodes.forEach((child, i) => { child.nextSibling = node.childNodes[i + 1] || null; });
+        node.childNodes.forEach((child, i) => { child.nextSibling = node.childNodes[i + 1] || null; child.parentNode=node; });
         node.children = node.childNodes.filter(child => child.nodeType === 1);
         Object.defineProperty(node.children, 'item', { value: index => node.children[index] });
     };
@@ -67,9 +67,10 @@ class NativeDOMParser {
             [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
             function Export-XmlNode([System.Xml.XmlNode]$xmlNode) {
                 @{
-                    nodeType = [int]$xmlNode.NodeType
+                    nodeType = if ($xmlNode.NodeType -in @([System.Xml.XmlNodeType]::Whitespace, [System.Xml.XmlNodeType]::SignificantWhitespace)) { 3 } else { [int]$xmlNode.NodeType }
                     nodeName = $xmlNode.Name
                     nodeValue = $xmlNode.Value
+                    namespaceURI = $xmlNode.NamespaceURI
                     textContent = $xmlNode.InnerText
                     innerHTML = $xmlNode.InnerXml
                     attributes = @($xmlNode.Attributes | ForEach-Object { @{ nodeName = $_.Name; nodeValue = $_.Value } })
@@ -78,10 +79,11 @@ class NativeDOMParser {
             }
             try {
                 $document = [System.Xml.XmlDocument]::new()
+                $document.PreserveWhitespace = $true
                 $document.LoadXml([Console]::In.ReadToEnd())
                 Export-XmlNode $document | ConvertTo-Json -Depth 100 -Compress
             } catch {
-                @{ nodeType = 9; nodeName = '#document'; childNodes = @(@{ nodeType = 1; nodeName = 'parsererror'; textContent = $_.Exception.Message }) } | ConvertTo-Json -Depth 5 -Compress
+                @{ nodeType = 9; nodeName = '#document'; childNodes = @(@{ nodeType = 1; nodeName = 'parsererror'; namespaceURI = 'http://www.mozilla.org/newlayout/xml/parsererror.xml'; textContent = $_.Exception.Message }) } | ConvertTo-Json -Depth 5 -Compress
             }
         `;
         const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
