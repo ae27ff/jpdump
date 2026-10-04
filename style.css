@@ -1,176 +1,358 @@
- /* Style the buttons that are used to open and close the accordion panel */
-
 * {
-box-sizing:border-box;
+    box-sizing: border-box;
 }
 
+body {
+    margin: 20px;
+    color: #202b38;
+    background-color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+}
 
-.accordionentry{
-	border: 1px solid lightgray;
-	border-radius:5px;
+body > h2 {
+    margin: 0 0 18px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 1.3;
+    letter-spacing: -0.6px;
 }
-pre,textarea{
-font-family: "Courier New", Courier, monospace;
-}
-.presim {
-    font-family: "Courier New", Courier, monospace;
-    white-space: pre-wrap;       /* CSS 3 */
-    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
-    white-space: -pre-wrap;      /* Opera 4-6 */
-    white-space: -o-pre-wrap;    /* Opera 7 */
-    word-wrap: break-word;       /* Internet Explorer 5.5+ */
-}
-button.accordion {
-    background-color: #eee;
-    color: #444;
-    padding: 10px;
+
+form {
+    display: flex;
+    align-items: center;
     width: 100%;
-    text-align: left;
+    min-height: 100px;
+    margin-bottom: 14px;
+    padding: 12px 16px;
+    border: 1px solid #dce2e8;
+    border-radius: 5px;
+}
+
+#preview {
+    height: 74px !important;
+    width: auto;
+    max-width: 40%;
+    object-fit: contain;
+    margin-right: 18px;
+    border: 1px solid #dce2e8;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+#formright {
+    min-width: 0;
+}
+
+input {
+    max-width: 100%;
+    margin-top: 8px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+    color: inherit;
+}
+
+input[type="file"]::file-selector-button {
+    margin-right: 12px;
+    padding: 4px 12px;
+    border: 1px solid #dce2e8;
+    border-radius: 4px;
+    color: #202b38;
+    background-color: #f7f9fb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    cursor: pointer;
+}
+
+input[type="file"]::file-selector-button:hover {
+    background-color: #f0f3f6;
+}
+
+.accordionentry {
+    min-width: 0;
+    border: 1px solid #dce2e8;
+    border-radius: 5px;
+}
+
+#image > .accordionentry {
+    margin-bottom: 12px;
+}
+
+button.accordion {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 9px 12px 9px 32px;
     border: none;
-    outline: none;
-
-	border-radius:5px;
+    border-radius: 4px;
+    color: #202b38;
+    background-color: #f0f3f6;
+    font: inherit;
+    font-weight: 500;
+    text-align: left;
+    overflow-wrap: anywhere;
 }
 
-/* Add a background color to the button if it is clicked on (add the .active class with JS), and when you move the mouse over it (hover) */
-button.accordion.active, button.accordion:hover {
-    background-color: #ddd;
+/* Decorative disclosure indicator; existing accordion state still controls it. */
+button.accordion::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    width: 5px;
+    height: 5px;
+    border-right: 1px solid #637080;
+    border-bottom: 1px solid #637080;
+    transform: translateY(-50%) rotate(-45deg);
 }
 
-/* Style the accordion panel. Note: hidden by default */
+button.accordion.active::before {
+    transform: translateY(-70%) rotate(45deg);
+}
+
+button.accordion.active {
+    border-radius: 4px 4px 0 0;
+}
+
+button.accordion:hover {
+    background-color: #e9eef3;
+}
+
+button.accordion:focus-visible,
+input:focus-visible,
+a:focus-visible {
+    outline: 2px solid #2e5c92;
+    outline-offset: 2px;
+}
+
+/* Zero vertical padding preserves fully collapsed max-height: 0 panels. */
 div.panel {
-    padding: 0 18px;
-	background-color: rgba(128,128,128,0.05);
-
+    padding: 0 28px;
+    background-color: #fff;
 }
 
+#image > .accordionentry:nth-child(2) > .panel {
+    padding: 0 10px;
+}
+
+.panel > .accordionentry {
+    margin: 10px 0;
+}
+
+.panel .accordionentry > button.accordion {
+    background-color: #f8fafb;
+}
+
+.panel .accordionentry > button.accordion:hover {
+    background-color: #edf1f5;
+}
+
+.panel .panel .accordionentry > button.accordion {
+    background-color: #f0f3f6;
+}
+
+.panel .panel .panel {
+    padding: 0 20px;
+    background-color: #f8fafb;
+}
 
 ul {
-	font-size:0.8em;
-    list-style-type: none;
-    margin: 0;
+    display: inline-flex;
+    flex-wrap: wrap;
+    max-width: 100%;
+    margin: 12px 0 0;
     padding: 0;
-    overflow: hidden;
+    list-style-type: none;
+    vertical-align: top;
+}
 
-	display:inline-block;
+ul:empty,
+ul:empty + br {
+    display: none;
 }
 
 li {
-    float: left;
-	display: block;
-	padding-left: 8px;
-	padding-right: 16px;
-	padding-top:5px;
-	padding-bottom:5px;
+    min-width: 72px;
+    max-width: 100%;
+    margin-right: 28px;
+    padding-bottom: 12px;
+}
+
+li:last-child {
+    margin-right: 0;
+}
+
+.detailname {
+    display: block;
+    margin-bottom: 2px;
+    color: #2e5c92;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.detailvalue {
+    display: block;
+    background-color: transparent;
+    font-variant-numeric: tabular-nums;
+}
+
+pre,
+textarea,
+.presim {
+    font-family: Consolas, "SFMono-Regular", "Courier New", monospace;
+}
+
+.presim {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
 }
 
 li a {
     display: inline-block;
-
-    text-decoration: underline;
-	background-color: rgba(128,200,128,0.3);
-	padding:3px;
-	border-radius:3px;
+    padding: 3px 8px;
+    border: 1px solid #dce2e8;
+    border-radius: 4px;
+    color: #2e5c92;
+    background-color: #fff;
+    font-size: 12px;
+    text-decoration: none;
+    white-space: normal;
 }
-/*
+
 li a:hover {
-
-}
-*/
-.detailname{
-	font-weight:900;
-	color:#1d53ec;
-}
-.detailvalue{
-	background-color: rgb(250,250,250);
-
-  white-space: nowrap;
-  display:block;
+    background-color: #f0f3f6;
 }
 
-body {
-  font-family: "Courier New", Courier, monospace;
-  font-size:1em;
-  background-color:white;
+.warning {
+    color: #b42318;
+    font-weight: bold;
 }
 
-.warning{
-	font-weight:bold;
-	color:red;
-}
-form{
-	display: inline-block;
-	border: 1px solid gray;
-	width:100%;
-        min-height: 100px;
-        position: relative;
-}
-input{
-	margin-bottom:5px;
-}
-#preview{
-	height:80px !important;
-	border: 1px solid gray;
-	margin-right:20px;
-	margin-left: 5px;
-	margin-top:5px;
-	margin-bottom:-5px;
-        float:left;
-}
-#formright{
-    
+#data-overlay {
+    position: fixed;
+    z-index: 1000;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    padding: 20px;
+    background-color: rgba(39, 53, 70, 0.4);
 }
 
-#data-overlay{
-	position:fixed;
-	top:0;
-	left:0;
-	right:0;
-	bottom:0;
-	background-color:rgba(128,128,128,0.5);
-	padding:20px;
-	display:none;
-}
-#data-overlay-inner{
-	background-color:white;
-	border-radius: 25px;
-	padding:20px;
-	width:100%;
-	height:100%;
-	text-align: right;
-}
-#data-overlay a{
-	
-}
-#data-overlay-title{
-	float:left;
-}
-#data-overlay-contentcontainer{
-	position: absolute;
-	top: 60px;
-	bottom: 40px;
-	right: 30px;
-	left: 30px;
-	text-align: left;
-	background-color: lightgray;
-}
-#data-overlay-content{
-	width:100%;
-	height:100%;
-	background-color: lightgray;
-	resize: none;
-  white-space:pre;
-  overflow:scroll;
+#data-overlay-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 16px 20px;
+    border: 1px solid #dce2e8;
+    border-radius: 6px;
+    background-color: #fff;
+    box-shadow: 0 8px 32px rgba(29, 43, 60, 0.15);
+    text-align: right;
 }
 
-#branding-bottom{
-    right:0;
+#data-overlay-title {
+    float: left;
+    max-width: calc(100% - 48px);
+    text-align: left;
+}
+
+#data-overlay-inner > a {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid #dce2e8;
+    border-radius: 4px;
+    color: #2e5c92;
+    background-color: #f7f9fb;
+    text-decoration: none;
+}
+
+#data-overlay-contentcontainer {
+    position: absolute;
+    top: 60px;
+    bottom: 20px;
+    right: 20px;
+    left: 20px;
+    text-align: left;
+}
+
+#data-overlay-content {
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    border: 1px solid #dce2e8;
+    border-radius: 4px;
+    color: #202b38;
+    background-color: #f8fafb;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: none;
+    white-space: pre;
+    overflow: scroll;
+}
+
+hr {
+    margin: 16px 0 0;
+    border: none;
+    border-top: 1px solid #dce2e8;
+}
+
+#branding-bottom {
+    right: 0;
     opacity: 0.75;
-    margin-top:10px;
-    max-height:50px;
-    overflow:hidden;
+    margin-top: 10px;
+    max-height: 50px;
+    overflow: hidden;
 }
 
-#info{
-    min-height:100px;
+#info {
+    min-height: 100px;
+}
+
+@media (max-width: 540px) {
+    body { margin: 14px 10px; }
+    body > h2 { font-size: 20px; }
+    form { padding: 12px; }
+    #preview { margin-right: 12px; }
+    div.panel { padding: 0 16px; }
+    #image > .accordionentry:nth-child(2) > .panel { padding: 0 6px; }
+    .panel .panel .panel { padding: 0 12px; }
+    li { margin-right: 20px; }
+    #data-overlay { padding: 10px; }
+    #data-overlay-inner { padding: 12px; }
+    #data-overlay-contentcontainer { top: 100px; left: 12px; right: 12px; bottom: 12px; }
+}
+
+@media (prefers-color-scheme: dark) {
+    body { color: #e1e7ef; background-color: #171b21; }
+    form, #preview, .accordionentry, li a, #data-overlay-inner,
+    #data-overlay-inner > a, #data-overlay-content { border-color: #38414c; }
+    button.accordion { color: #e1e7ef; background-color: #262e38; }
+    button.accordion::before { border-color: #a1adbc; }
+    button.accordion:hover { background-color: #303a47; }
+    div.panel, li a, #data-overlay-inner { background-color: #171b21; }
+    .panel .accordionentry > button.accordion { background-color: #1c232c; }
+    .panel .accordionentry > button.accordion:hover { background-color: #303a47; }
+    .panel .panel .accordionentry > button.accordion,
+    li a:hover { background-color: #262e38; }
+    .panel .panel .panel, #data-overlay-content { background-color: #1c232c; }
+    .detailname, li a, #data-overlay-inner > a { color: #9bc3f3; }
+    .warning { color: #ff9c92; }
+    #data-overlay { background-color: rgba(0, 0, 0, 0.53); }
+    #data-overlay-inner { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); }
+    #data-overlay-inner > a { background-color: #2c3541; }
+    #data-overlay-content { color: #e1e7ef; }
+    hr { border-color: #38414c; }
+    input[type="file"]::file-selector-button {
+        color: #e1e7ef;
+        border-color: #38414c;
+        background-color: #2c3541;
+    }
+    input[type="file"]::file-selector-button:hover { background-color: #303a47; }
+    button.accordion:focus-visible, input:focus-visible, a:focus-visible { outline-color: #9bc3f3; }
 }
