@@ -53,6 +53,31 @@ test('Rendering a large JPEG does not encode segment data or create download Blo
     assert.equal(ui.urls.size,0);
 });
 
+test('Invalid and truncated files show recovered information and visible warnings', () => {
+    const ui=loadFrontend(), bytes=jpeg();
+    const truncated=loadJPEG().processJPEG(bytes.subarray(0,bytes.length-2).toString('latin1'));
+    ui.context.displayResults(truncated);
+    assert.ok(ui.elements.image.children[0].innerHTML.includes('recovered data shown'));
+    assert.ok(ui.elements.image.children[0].innerHTML.includes('file&nbsp;may&nbsp;be&nbsp;truncated'));
+    assert.ok(ui.elements.image.children[1].children.length>0);
+    assert.ok(ui.context.displayHeaderInfo({...truncated.headers.at(-1),truncated:true}).includes('Truncated; available bytes shown'));
+    assert.ok(ui.context.displayHeaderInfo({...truncated.headers.at(-1),recovered:true}).includes('sequence unverified'));
+    assert.ok(ui.context.displayImageInfo({valid:false,unparsed:true,hasextraneous:true,extraneous:'left',warnings:['<untrusted>']}).includes('&lt;untrusted&gt;'));
+});
+
+test('Truncated APP1 still exposes the bounded EXIF reader in the results', () => {
+    const {exifSegment}=require('./exif-helpers');
+    const bytes=Buffer.concat([Buffer.from([255,216]),exifSegment().subarray(0,-2)]);
+    const context=loadJPEG(), info=context.processJPEG(bytes.toString('latin1'));
+    const app1=info.headers.at(-1);
+    assert.equal(app1.truncated,true);
+    assert.equal(app1.extendedtype,'EXIF');
+    const ui=loadFrontend(); let calls=0;
+    ui.context.getPreviewEXIF=()=>{calls++;};
+    ui.context.displayResults(info);
+    assert.equal(calls,1);
+});
+
 test('Text and hex previews are bounded while showing the complete byte count', () => {
     const ui = loadFrontend();
     const content = 'A'.repeat(2*1024*1024);
@@ -180,4 +205,20 @@ test('Dimensions remain visible for codecs the browser cannot preview', () => {
     assert.ok(html.includes('Mapping Table #'));
     assert.ok(html.includes('18'));
     assert.equal(html.includes('AC Table'),false);
+});
+
+test('Nested accordions use natural height and still collapse individually', () => {
+    const ui=loadFrontend();
+    vm.runInContext(fs.readFileSync(path.join(projectRoot,'accordion.js'),'utf8'),ui.context);
+    const child=ui.context.accordion_create('EXIF','Large metadata');
+    const parent=ui.context.accordion_create('Headers',[child]);
+    for (const entry of [parent,child]) entry.children[0].nextElementSibling=entry.children[1];
+    parent.children[0].onclick(); child.children[0].onclick();
+    assert.equal(parent.children[1].style.maxHeight,'none');
+    assert.equal(child.children[1].style.maxHeight,'none');
+    child.children[0].onclick();
+    assert.equal(child.children[1].style.maxHeight,'');
+    assert.equal(parent.children[1].style.maxHeight,'none');
+    parent.children[0].onclick();
+    assert.equal(parent.children[1].style.maxHeight,'');
 });
