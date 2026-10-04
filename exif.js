@@ -859,19 +859,30 @@
 
             var indexOfXmp = xmpString.indexOf('x:xmpmeta') + 10;
             // Some encoders omit namespace declarations which the XML parser requires.
-            xmpString = xmpString.slice(0, indexOfXmp)
-                        + 'xmlns:Iptc4xmpCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/" '
-                        + 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-                        + 'xmlns:tiff="http://ns.adobe.com/tiff/1.0/" '
-                        + 'xmlns:plus="http://schemas.android.com/apk/lib/com.google.android.gms.plus" '
-                        + 'xmlns:ext="http://www.gettyimages.com/xsltExtension/1.0" '
-                        + 'xmlns:exif="http://ns.adobe.com/exif/1.0/" '
-                        + 'xmlns:stEvt="http://ns.adobe.com/xap/1.0/sType/ResourceEvent#" '
-                        + 'xmlns:stRef="http://ns.adobe.com/xap/1.0/sType/ResourceRef#" '
-                        + 'xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" '
-                        + 'xmlns:xapGImg="http://ns.adobe.com/xap/1.0/g/img/" '
-                        + 'xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/" '
-                        + xmpString.slice(indexOfXmp);
+            var namespaces = [
+                ['Iptc4xmpCore', 'http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/'],
+                ['xsi', 'http://www.w3.org/2001/XMLSchema-instance'],
+                ['tiff', 'http://ns.adobe.com/tiff/1.0/'],
+                ['plus', 'http://schemas.android.com/apk/lib/com.google.android.gms.plus'],
+                ['ext', 'http://www.gettyimages.com/xsltExtension/1.0'],
+                ['exif', 'http://ns.adobe.com/exif/1.0/'],
+                ['stEvt', 'http://ns.adobe.com/xap/1.0/sType/ResourceEvent#'],
+                ['stRef', 'http://ns.adobe.com/xap/1.0/sType/ResourceRef#'],
+                ['crs', 'http://ns.adobe.com/camera-raw-settings/1.0/'],
+                ['xapGImg', 'http://ns.adobe.com/xap/1.0/g/img/'],
+                ['Iptc4xmpExt', 'http://iptc.org/std/Iptc4xmpExt/2008-02-29/']
+            ];
+            var rootTagEnd = xmpString.indexOf('>', indexOfXmp);
+            var rootTag = xmpString.substring(0, rootTagEnd + 1);
+            var missingNamespaces = '';
+            for (var namespaceIndex = 0; namespaceIndex < namespaces.length; namespaceIndex++) {
+                var namespacePrefix = namespaces[namespaceIndex][0];
+                var namespacePattern = new RegExp('(?:^|\\s)xmlns:' + namespacePrefix + '\\s*=');
+                if (!namespacePattern.test(rootTag)) {
+                    missingNamespaces += ' xmlns:' + namespacePrefix + '="' + namespaces[namespaceIndex][1] + '"';
+                }
+            }
+            xmpString = xmpString.slice(0, indexOfXmp) + missingNamespaces + xmpString.slice(indexOfXmp);
 
             var dom = new DOMParser();
             return xml2Object(dom.parseFromString(xmpString, 'text/xml'));
