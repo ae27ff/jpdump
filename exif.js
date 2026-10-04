@@ -479,6 +479,7 @@
         var fieldValue, fieldName, dataSize, segmentType;
         var segmentStartPos = startOffset;
         var sectionEnd = startOffset + sectionLength;
+        var utf8 = false;
         if (startOffset < 0 || sectionLength < 0 || sectionEnd > dataView.byteLength) return data;
         while(segmentStartPos + 5 <= sectionEnd) {
             if (dataView.getUint8(segmentStartPos) !== 0x1C) return data;
@@ -500,9 +501,16 @@
                 valueStart += lengthOctets;
             }
             if (dataSize > sectionEnd - valueStart) return data;
+            if (recordNumber === 1 && segmentType === 90) {
+                utf8 = getStringFromDB(dataView, valueStart, dataSize) === '\x1b%G';
+            }
             if (recordNumber === 2 && segmentType in IptcFieldMap) {
                 fieldName = IptcFieldMap[segmentType];
-                fieldValue = getStringFromDB(dataView, valueStart, dataSize);
+                fieldValue = utf8 ? getUTF8StringFromDB(dataView, valueStart, dataSize) : getStringFromDB(dataView, valueStart, dataSize);
+                if (typeof fieldValue === 'undefined') {
+                    segmentStartPos = valueStart + dataSize;
+                    continue;
+                }
                 // Check if we already stored a value with this name
                 if(data.hasOwnProperty(fieldName)) {
                     // Value already stored with this name, create multivalue field

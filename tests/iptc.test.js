@@ -111,3 +111,22 @@ test('Empty IPTC resources do not hide later resources within the same APP13', (
     const payload = Buffer.concat([Buffer.from('Photoshop 3.0\0'), iptcResource(Buffer.alloc(0)), iptcResource(dataset(2,25,'REAL'))]);
     assert.equal(readMetadata(jpeg(segment(0xed,payload))).iptcdata.keywords, 'REAL');
 });
+
+test('IPTC honors the UTF-8 coded character set with native and legacy decoders', () => {
+    const packet = iptcSegment(dataset(1,90,Buffer.from([0x1b,0x25,0x47])),
+        dataset(2,120,Buffer.from('café 日本 😀','utf8')),
+        dataset(2,25,Buffer.from('français','utf8')), dataset(2,25,Buffer.from('日本','utf8')));
+    for (const decoder of [TextDecoder, undefined]) {
+        const tags = readMetadata(jpeg(packet), { TextDecoder: decoder }).iptcdata;
+        assert.equal(tags.caption, 'café 日本 😀');
+        assert.deepEqual(Array.from(tags.keywords), ['français','日本']);
+    }
+});
+
+test('Malformed UTF-8 skips that dataset while retaining later valid metadata', () => {
+    const tags = readIPTC(dataset(1,90,Buffer.from([0x1b,0x25,0x47])),
+        dataset(2,120,Buffer.from([0xc3,0x28])), dataset(2,25,'REAL'));
+    assert.equal(tags.caption, undefined);
+    assert.equal(tags.keywords, 'REAL');
+    assert.equal(readIPTC(dataset(2,120,Buffer.from([0xe9]))).caption, 'é');
+});
