@@ -246,7 +246,11 @@ function displayEXIFInfo(exif){
 			}
 		}
 		if(exif[prop] instanceof Array){
-			html+=displayDetail(prop,getContentURL(array2string(exif[prop])))+"</ul><br><ul>"
+			if(isByteArray(exif[prop])){
+				html+=displayDetail(prop,getContentURL(array2string(exif[prop])))+"</ul><br><ul>"
+			}else{
+				html+=displayDetailPre(prop,JSON.stringify(exif[prop]))+"</ul><br><ul>"
+			}
 		}else{
 			html+=displayDetailPre(prop,exif[prop])+"</ul><br><ul>"
 		}
@@ -254,6 +258,13 @@ function displayEXIFInfo(exif){
 		//console.log(" ")
 	}
 	return html+"</ul>";
+}
+
+function isByteArray(values){
+	for(var i=0;i<values.length;i++){
+		if(typeof values[i]!=="number" || values[i]<0 || values[i]>255 || values[i]%1!==0) return false;
+	}
+	return true;
 }
 
 
