@@ -76,21 +76,7 @@ function processSOS(data){
 
 
 function unstuffSOSHCData(data){
-    var c = 0;
-    var c2 = 0;
-    var data_unstuffed = "";
-    for(var i=0;i<data.length;i++){
-        c = data.charCodeAt(i);
-        c2 = data.charCodeAt(i+1);
-        //console.log(c.toString(16)+" "+c2.toString(16));
-        if(c===0xFF && c2===0x00){
-            data_unstuffed += data.charAt(i);
-            i+=1;//discard the stuffed zero, not the entropy byte
-        }else{
-            data_unstuffed += data.charAt(i);
-        }
-    }
-    return data_unstuffed;
+    return data.replace(/\xff\x00/g,'\xff');
 }
 
 

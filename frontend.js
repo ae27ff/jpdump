@@ -3,6 +3,9 @@ var g_ImageRequestId=0;
 var g_ResultRequestId=0;
 var g_ExifCache=null;
 var g_ExifCacheData=null;
+var g_ContentData=[];
+var g_DownloadURLs=[];
+var MAX_CONTENT_PREVIEW=65536;
 branding.init();
 window.addEventListener('load',function(){
   var up=document.getElementById('upload');
@@ -105,10 +108,6 @@ function getDataURIMT(data,mt){
 	return "data:"+mt+";base64," + btoa(data);
 }
 */
-function getJsLink(data,mt){
-        if(typeof mt === "undefined") mt="";
-	return '#" onclick="' + "dataOverlayStub('"+btoa(data)+"')";
-}
 function stobuf(str) {
   var buf = new ArrayBuffer(str.length);
   var bufView = new Uint8Array(buf);
@@ -132,25 +131,50 @@ function getDataBlob(data){
     return new Blob([buf], {type: 'application/octet-stream;charset=utf-8;'});//TODO: IE is messing up file encoding!
 }
 
-function getDlLink(data, filename){
-    
+function registerContent(data){
+    g_ContentData.push(data);
+    return g_ContentData.length-1;
+}
+
+function getDlLink(data, filename, contentId){
+    if(typeof contentId==='undefined') contentId=registerContent(data);
     var linkElem = document.createElement('a');
-    if (navigator.msSaveBlob) {
-        linkElem.setAttribute('onclick', "ieDownloadData(atob('"+btoa(data)+"'),'"+filename+"')");
-    }else{
-        var dlData = getDataBlob(data);
-        var dlURL = window.URL.createObjectURL(dlData);
-        linkElem.href = dlURL;
-        linkElem.setAttribute('download', filename);
-    }
+    linkElem.href='#';
+    linkElem.setAttribute('download', filename);
+    linkElem.setAttribute('onclick', 'return downloadContent('+contentId+',this,'+g_ResultRequestId+')');
     linkElem.innerHTML="Download Raw";
     return linkElem.outerHTML;
 }
+
+function downloadContent(contentId, linkElem, resultId){
+    if(resultId!==g_ResultRequestId || typeof g_ContentData[contentId]!=='string') return false;
+    if(linkElem.getAttribute('data-blob-url')) return true;
+    var dlData = getDataBlob(g_ContentData[contentId]);
+    if (navigator.msSaveBlob) {
+        navigator.msSaveBlob(dlData,linkElem.getAttribute('download'));
+        return false;
+    }else{
+        var dlURL = window.URL.createObjectURL(dlData);
+        g_DownloadURLs.push(dlURL);
+        linkElem.href = dlURL;
+        linkElem.setAttribute('data-blob-url',dlURL);
+        return true;
+    }
+}
 function getContentURL(content){
 	if(content==="") return "None";
-	return '<a href="'+getJsLink(hexdump(content,16),'text/plain')+'">View Hex</a> '+
-	'<a href="'+getJsLink(content,'text/plain')+'">View Text</a> '+
-	getDlLink(content,'output.bin');
+	var contentId=registerContent(content);
+	return '<a href="#" onclick="return showContent('+contentId+',true,'+g_ResultRequestId+')">View Hex</a> '+
+	'<a href="#" onclick="return showContent('+contentId+',false,'+g_ResultRequestId+')">View Text</a> '+
+	getDlLink(content,'output.bin',contentId);
+}
+
+function showContent(contentId, asHex, resultId){
+	if(resultId!==g_ResultRequestId || typeof g_ContentData[contentId]!=='string') return false;
+	var content=g_ContentData[contentId];
+	var preview=content.substring(0,MAX_CONTENT_PREVIEW);
+	showDataOverlay(asHex ? hexdump(preview,16) : preview,content.length,preview.length);
+	return false;
 }
 
 function displayDetailPre(name,value){
@@ -298,6 +322,7 @@ function displayScanComponentInfo(comp){
 
 function displayResults(info){
 	++g_ResultRequestId;
+	g_ContentData=[];
 	var elImage=document.getElementById('image')
 	elImage.innerHTML="";
 	var elHeaders=[]
@@ -363,16 +388,13 @@ String.prototype.replaceAll = function(target, replacement) {
   return this.split(target).join(replacement);
 };
 */
-function dataOverlayStub(data_b64){
-	var data = atob(data_b64);
-	showDataOverlay(data);
-}
-function showDataOverlay(data){
+function showDataOverlay(data, totalBytes, previewBytes){
 	var el = document.getElementById('data-overlay');
 	var el_text = document.getElementById('data-overlay-content');
         var el_len = document.getElementById('data-overlay-length');
 	el_text.value = data;
-        el_len.innerHTML = data.length;
+        el_len.innerHTML = typeof totalBytes==='undefined' ? data.length :
+            (previewBytes<totalBytes ? 'First '+previewBytes+' of '+totalBytes+' bytes; Download Raw for all data' : totalBytes+' bytes');
 	el.style.display="block";
 }
 function hideDataOverlay(){
