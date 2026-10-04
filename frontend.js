@@ -31,9 +31,6 @@ function handleFileSelect(evt) {
 	reader.onload = function(e) {
 		if (requestId !== g_ImageRequestId) return;
 		console.log("reader onload");
-		window.g_debug_event=e;
-		window.g_debug_target=e.target;
-		window.g_debug_result=e.target.result;
 
 		var result=null;
 		if(typeof e.target.result === "undefined" || e.target.result===null){
@@ -41,11 +38,19 @@ function handleFileSelect(evt) {
 		}else{
 			result=e.target.result;
 		}
-		g_ImageData=result;
-		previewImage(result, requestId);
+		g_ImageData=typeof result==='string' ? result : array2string(new Uint8Array(result));
+		previewImage(g_ImageData, requestId);
 		console.log('x');
 	};
-	reader.readAsBinaryString(f);
+	reader.onerror = function() {
+		if (requestId !== g_ImageRequestId) return;
+		g_ImageData='';
+		++g_ResultRequestId;
+		releaseResultContent();
+		document.getElementById('preview').removeAttribute('src');
+		document.getElementById('image').innerHTML='<p class="warning">Unable to read the selected file.</p>';
+	};
+	reader.readAsArrayBuffer(f);
 
 	// Read in the image file as a data URL.
 	//reader.readAsText(f);
@@ -220,7 +225,7 @@ function displayImageInfo(info){
 	displayDetail("Filesize",info.filesize)+
 	displayDetail("Datasize",info.nextp)+
 	displayDetail("JPEG Structure",info.valid ? "Valid" : '<span class="warning">Invalid</span>')+
-	displayDetail("Resolution",getPreviewDims());
+	displayDetail("Resolution",info.dimensions ? info.dimensions.width+'x'+info.dimensions.height : getPreviewDims());
 
 	if(info.hasextraneous){
 		html+="</ul><br><ul>"+
@@ -232,8 +237,8 @@ function displayImageInfo(info){
 function displayObjectInfo(obj){
 	var html="<ul>";
 	for (var property in obj) {
-		if (obj.hasOwnProperty(property)) {
-			html+=displayDetail(property,obj[property]);
+		if (Object.prototype.hasOwnProperty.call(obj,property)) {
+			html+=displayDetailPre(property,obj[property]);
 		}
 	}
 	return html+"</ul>";
@@ -261,7 +266,7 @@ function displayEXIFInfo(exif){
 		var value=exif[prop];
 		//console.log(prop)
 		//console.log(typeof exif[prop])
-		if(value !== null && typeof value === 'object' && !(value instanceof Number || value instanceof Array)){
+		if(value !== null && typeof value === 'object' && !(value instanceof Number || Array.isArray(value))){
 			if(Object.keys(value).length===0){
 				value="Not present"
 			}else{
@@ -269,7 +274,7 @@ function displayEXIFInfo(exif){
 				value=JSON.stringify(value)
 			}
 		}
-		if(value instanceof Array){
+		if(Array.isArray(value)){
 			html+=displayDetailPre(prop,JSON.stringify(value));
 			if(isByteArray(value)) html+=displayDetail(prop+" Raw bytes",getContentURL(array2string(value)));
 			html+="</ul><br><ul>";
@@ -311,14 +316,15 @@ function displayScanInfo(sos){
     //var sos = {scanlen:0, ncomponents:0, ncomponentsstr:"", components:[], sss:0, ess:0, sabp:0, hcdata:""};
     var html="<ul>"+
     displayDetail("Components",sos.ncomponentsstr)+"</ul><br><ul>"+
-    displayDetail("Start of Spectral/Predictive Selection",sos.sss)+
-    displayDetail("End of Spectral Selection",sos.ess)+
-    displayDetail("Successive Approximate Bit Positions",sos.sabp)+"</ul><br><ul>"+
+    displayDetail(sos.scanCoding==='jpeg-ls' ? "Near-lossless error limit" : "Start of Spectral/Predictive Selection",sos.sss)+
+    displayDetail(sos.scanCoding==='jpeg-ls' ? "Interleave mode" : "End of Spectral Selection",sos.ess)+
+    displayDetail(sos.scanCoding==='jpeg-ls' ? "Point transform" : "Successive Approximate Bit Positions",sos.sabp)+"</ul><br><ul>"+
     displayDetail(sos.scanCoding==='jpeg-ls' ? "JPEG-LS coded data (bit-stuffed)" : "Entropy-coded data (destuffed)",getContentURL(sos.hcdata))+""
     //html+="</ul><br><ul>"+
     return html+"</ul>";
 }
-function displayScanComponentInfo(comp){
+function displayScanComponentInfo(comp,coding){
+    if(coding==='jpeg-ls') return '<ul>'+displayDetail('Component Id',comp.id)+displayDetail('Mapping Table #',comp.dctn*16+comp.actn)+'</ul>';
     //var component={id:0,idstr:"",actn:0,dctn:0};
     var html="<ul>"+
     displayDetail("Component Id",comp.id)+
@@ -336,7 +342,7 @@ function displayResults(info){
 	elImage.innerHTML="";
 	var elHeaders=[]
 	var elImageInfo=accordion_create('Image Info',displayImageInfo(info))
-	for(i=0;i<info.headers.length;i++){
+	for(var i=0;i<info.headers.length;i++){
 		var header=info.headers[i];
 		var headerinfo=displayHeaderInfo(header);
 		var elHeader = accordion_create(header.desc.shortname+" - "+header.desc.longname,headerinfo);
@@ -354,7 +360,7 @@ function displayResults(info){
                                 //console.log(header.extendeddata.components[j])
                                 //console.log(header.extendeddata.components)
                                 var comp=header.extendeddata.components[j];
-                                var elComponent=accordion_create(comp.idstr+' Component',displayScanComponentInfo(comp));
+                                var elComponent=accordion_create(comp.idstr+' Component',displayScanComponentInfo(comp,header.extendeddata.scanCoding));
                                 elScan.children[1].appendChild(elComponent);
                         }
                     }
