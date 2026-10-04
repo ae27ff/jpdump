@@ -173,6 +173,10 @@ function processHeader(data,p){
 	//console.log(header.type+header.content+isJFIF(header.content))
 	//if(header.type=="c0"){
 	if(dlb>=0xc0 && dlb<=0xc3){
+		if(header.content.length<6 || header.content.length!==6+3*header.content.charCodeAt(5)){
+			header.valid=false;
+			return header;
+		}
 		header.hasextendeddata=true;
 		header.extendedtype="SOF";
 		header.extendeddata=processSOF0(header.content);
@@ -197,6 +201,10 @@ function processHeader(data,p){
 		header.extendeddata=processEXIF(header.content);
 	}
 	if(header.type=="da"){//technically by spec. SOS has a header length, but we include the scan data as its content because of jpdump limitations
+		if(header.content.length<1 || header.content.charCodeAt(0)<1 || header.content.charCodeAt(0)>4 || header.content.length!==4+2*header.content.charCodeAt(0)){
+			header.valid=false;
+			return header;
+		}
 		header.len+=" (Scanned)";
                 header.hasextendeddata=true;
                 header.extendedtype="Scan";
