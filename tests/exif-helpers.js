@@ -21,3 +21,19 @@ function exifSegment(bigEndian = false, malformedUnknown = false) {
 }
 
 module.exports = { exifSegment };
+
+function tiffSegment(entries, { nextIFD=0, extra=Buffer.alloc(0) } = {}) {
+    const tiff=Buffer.alloc(8+2+entries.length*12+4);
+    tiff.write('II'); tiff.writeUInt16LE(42,2); tiff.writeUInt32LE(8,4);
+    tiff.writeUInt16LE(entries.length,8);
+    entries.forEach((entry,index) => {
+        const offset=10+12*index;
+        tiff.writeUInt16LE(entry.tag,offset); tiff.writeUInt16LE(entry.type,offset+2);
+        tiff.writeUInt32LE(entry.count,offset+4);
+        if (Buffer.isBuffer(entry.value)) entry.value.copy(tiff,offset+8);
+        else tiff.writeUInt32LE(entry.value,offset+8);
+    });
+    tiff.writeUInt32LE(nextIFD,10+12*entries.length);
+    return segment(0xe1,Buffer.concat([Buffer.from('Exif\0\0'),tiff,extra]));
+}
+module.exports.tiffSegment=tiffSegment;
