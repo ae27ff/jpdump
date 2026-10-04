@@ -33,13 +33,13 @@ function processSOS(data){
     //    p+2 actually needs to be at 0
 
     //Number of Components in scan  1 byte        This must be >= 1 and <=4 (otherwise error), usually 1 or 3
-    sos.ncomponents = data.charCodeAt(p+2);
+    sos.ncomponents = data.length ? data.charCodeAt(p+2) : 0;
     sos.ncomponentsstr=getSOSComponentsStr(sos.ncomponents);
     p+=3;//advance to beginning of component section [this was p=0 so this could just be p=3]
 
 
     //Each component                2 bytes      For each component, read 2 bytes. It contains,
-    for(var i=0;i<sos.ncomponents;i++){
+    for(var i=0;i<sos.ncomponents && p+2<=data.length;i++){
         var component={id:0,idstr:"",actn:0,dctn:0};
         // 1 byte   Component Id (refer to the frame component identifiers),
         component.id=data.charCodeAt(p);
@@ -57,13 +57,14 @@ function processSOS(data){
     //"Ignorable Bytes"               3 bytes      We have to skip 3 bytes. 
     // the ignorable bytes are actually (courtesy NTUEE http://lad.dsc.ufcg.edu.br/multimidia/jpegmarker.pdf )
     //    Start of spectral/predictor selection   1 byte
-    sos.sss=data.charCodeAt(p);
+    p=1+2*sos.ncomponents;
+    sos.sss=p<data.length ? data.charCodeAt(p) : '';
     //    End of spectral selection               1 byte
-    sos.ess=data.charCodeAt(p+1);
+    sos.ess=p+1<data.length ? data.charCodeAt(p+1) : '';
     // successive approximate bit positions:  1 byte
     //    Successive approx. high bit position    4 bits
     //    Successive approx. low bit position     4 bits   (or point transform)
-    sos.sabp = data.charCodeAt(p+2);
+    sos.sabp = p+2<data.length ? data.charCodeAt(p+2) : '';
     p+=3;//advance to data after fields
     
     
