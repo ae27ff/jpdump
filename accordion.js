@@ -21,7 +21,8 @@ function accordion_create(header,body){
 	elAccordion.classList.add('accordionentry')
 	var elHead=document.createElement('button');
 	elHead.classList.add('accordion')
-	elHead.innerHTML=header;
+	elHead.type='button';
+	elHead.textContent=header;
 
 	elHead.onclick = function() {
 		this.classList.toggle("active");
@@ -34,8 +35,8 @@ function accordion_create(header,body){
 	}
 	var elBody=document.createElement('div');
 	elBody.classList.add('panel')
-	if(body instanceof Array){
-		for(i=0;i<body.length;i++){
+	if(Array.isArray(body)){
+		for(var i=0;i<body.length;i++){
 			elBody.appendChild(body[i]);
 		}
 	}else elBody.innerHTML=body;
