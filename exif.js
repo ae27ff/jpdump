@@ -839,55 +839,90 @@
         return tags;
     }
 
-   function findXMPinJPEG(file) {
+    function findJPEGAPP1(file, onAPP1) {
+        var dataView = file instanceof DataView ? file : new DataView(file);
+        var length = dataView.byteLength;
+        if (length < 2 || dataView.getUint8(0) !== 0xFF || dataView.getUint8(1) !== 0xD8) return;
 
-        if (!('DOMParser' in self)) {
-            // console.warn('XML parsing not supported without DOMParser');
-            return;
-        }
-        var dataView = new DataView(file);
-
-        if (debug) console.log("Got file of length " + file.byteLength);
-        if ((dataView.getUint8(0) != 0xFF) || (dataView.getUint8(1) != 0xD8)) {
-           if (debug) console.log("Not a valid JPEG");
-           return false; // not a valid jpeg
-        }
-
-        var offset = 2,
-            length = file.byteLength,
-            dom = new DOMParser();
-
-        while (offset < (length-4)) {
-            if (getStringFromDB(dataView, offset, 4) == "http") {
-                var startOffset = offset - 1;
-                var sectionLength = dataView.getUint16(offset - 2) - 1;
-                var xmpString = getStringFromDB(dataView, startOffset, sectionLength)
-                var xmpEndIndex = xmpString.indexOf('xmpmeta>') + 8;
-                xmpString = xmpString.substring( xmpString.indexOf( '<x:xmpmeta' ), xmpEndIndex );
-
-                var indexOfXmp = xmpString.indexOf('x:xmpmeta') + 10
-                //Many custom written programs embed xmp/xml without any namespace. Following are some of them.
-                //Without these namespaces, XML is thought to be invalid by parsers
-                xmpString = xmpString.slice(0, indexOfXmp)
-                            + 'xmlns:Iptc4xmpCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/" '
-                            + 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-                            + 'xmlns:tiff="http://ns.adobe.com/tiff/1.0/" '
-                            + 'xmlns:plus="http://schemas.android.com/apk/lib/com.google.android.gms.plus" '
-                            + 'xmlns:ext="http://www.gettyimages.com/xsltExtension/1.0" '
-                            + 'xmlns:exif="http://ns.adobe.com/exif/1.0/" '
-                            + 'xmlns:stEvt="http://ns.adobe.com/xap/1.0/sType/ResourceEvent#" '
-                            + 'xmlns:stRef="http://ns.adobe.com/xap/1.0/sType/ResourceRef#" '
-                            + 'xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" '
-                            + 'xmlns:xapGImg="http://ns.adobe.com/xap/1.0/g/img/" '
-                            + 'xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/" '
-                            + xmpString.slice(indexOfXmp)
-
-                var domDocument = dom.parseFromString( xmpString, 'text/xml' );
-                return xml2Object(domDocument);
-            } else{
-             offset++;
+        var offset = 2;
+        var inScan = false;
+        while (offset < length) {
+            var wasInScan = inScan;
+            if (inScan) {
+                while (offset < length && dataView.getUint8(offset) !== 0xFF) offset++;
+                if (offset >= length) return;
+            } else if (dataView.getUint8(offset) !== 0xFF) {
+                return;
             }
+
+            var codeOffset = offset + 1;
+            while (codeOffset < length && dataView.getUint8(codeOffset) === 0xFF) codeOffset++;
+            if (codeOffset >= length) return;
+
+            var marker = dataView.getUint8(codeOffset);
+            if (marker === 0x00 && inScan) {
+                offset = codeOffset + 1;
+                continue;
+            }
+            if (inScan && marker >= 0xD0 && marker <= 0xD7) {
+                offset = codeOffset + 1;
+                continue;
+            }
+            inScan = false;
+
+            if (marker === 0xD9) return;
+            if (marker === 0xD8 || marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)) {
+                offset = codeOffset + 1;
+                continue;
+            }
+            if (codeOffset + 2 >= length) return;
+
+            var segmentLength = dataView.getUint16(codeOffset + 1);
+            var segmentEnd = codeOffset + 1 + segmentLength;
+            if (segmentLength < 2 || segmentEnd > length) return;
+            if (marker === 0xE1) {
+                var result = onAPP1(dataView, codeOffset + 3, segmentLength - 2);
+                if (typeof result !== "undefined") return result;
+            }
+
+            offset = segmentEnd;
+            if (marker === 0xDA || (wasInScan && marker === 0xDC)) inScan = true;
         }
+    }
+
+    function findXMPinJPEG(file) {
+        if (!('DOMParser' in self)) return;
+
+        var signature = "http://ns.adobe.com/xap/1.0/\0";
+        var result = findJPEGAPP1(file, function(dataView, payloadStart, payloadLength) {
+            if (payloadLength < signature.length || getStringFromDB(dataView, payloadStart, signature.length) !== signature) return;
+
+            var xmpString = getStringFromDB(dataView, payloadStart + signature.length, payloadLength - signature.length);
+            var xmpStart = xmpString.indexOf('<x:xmpmeta');
+            var xmpEnd = xmpString.indexOf('xmpmeta>', xmpStart) + 8;
+            if (xmpStart < 0 || xmpEnd < 8) return;
+            xmpString = xmpString.substring(xmpStart, xmpEnd);
+
+            var indexOfXmp = xmpString.indexOf('x:xmpmeta') + 10;
+            // Some encoders omit namespace declarations which the XML parser requires.
+            xmpString = xmpString.slice(0, indexOfXmp)
+                        + 'xmlns:Iptc4xmpCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/" '
+                        + 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+                        + 'xmlns:tiff="http://ns.adobe.com/tiff/1.0/" '
+                        + 'xmlns:plus="http://schemas.android.com/apk/lib/com.google.android.gms.plus" '
+                        + 'xmlns:ext="http://www.gettyimages.com/xsltExtension/1.0" '
+                        + 'xmlns:exif="http://ns.adobe.com/exif/1.0/" '
+                        + 'xmlns:stEvt="http://ns.adobe.com/xap/1.0/sType/ResourceEvent#" '
+                        + 'xmlns:stRef="http://ns.adobe.com/xap/1.0/sType/ResourceRef#" '
+                        + 'xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" '
+                        + 'xmlns:xapGImg="http://ns.adobe.com/xap/1.0/g/img/" '
+                        + 'xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/" '
+                        + xmpString.slice(indexOfXmp);
+
+            var dom = new DOMParser();
+            return xml2Object(dom.parseFromString(xmpString, 'text/xml'));
+        });
+        return result;
     }
 
     function xml2Object(xml) {
