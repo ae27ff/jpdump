@@ -293,6 +293,7 @@ test('EXP applies once to a following differential frame and wide DRI requires J
     const exp=segment(0xdf,Buffer.from([0x11]));
     const dhp=segment(0xde,Buffer.from([8,0,1,0,1,1,1,0x11,0]));
     assert.equal(parseJPEG(stream(dhp,frame(),scan(),exp,frame(0xc5),scan())).valid,true);
+    assert.equal(parseJPEG(stream(dhp,frame(),scan(),segment(0xdf,Buffer.from([0])),frame(0xc5),scan())).valid,false);
     for (const parts of [
         [frame(),scan(),exp], [dhp,exp,frame(),scan()], [dhp,frame(),scan(),exp],
         [dhp,frame(),scan(),exp,exp,frame(0xc5),scan()], [dhp,frame(),scan(),exp,scan()]
@@ -360,4 +361,291 @@ test('An OpenJPEG-encoded RGB codestream keeps its dimensions, labels and exact 
     assert.equal(context.jpeg_headerdump_name('5f').shortname,'J2K-POC');
     for (const name of ['n','intermediate','out','pe','q']) assert.equal(context[name],undefined);
     for (let length=0;length<bytes.length;length++) assert.equal(context.processJPEG(bytes.subarray(0,length).toString('latin1')).valid,false);
+});
+
+test('DNL length distinguishes classic JPEG from the wider JPEG-LS line count', () => {
+    for(const payload of [Buffer.from([0,1,9]),Buffer.from([0,1,9,8,7])])
+        assert.equal(parseJPEG(stream(frame(),scan(),segment(0xdc,payload))).valid,false);
+    const result=parseJPEG(stream(frame(0xf7),scan([1],0,0),segment(0xdc,Buffer.from([0,0,2]))));
+    assert.equal(result.valid,true);
+    assert.equal(result.dimensions.height,2);
+});
+
+test('JPEG-LS LSE preserves declared dimensions and only resolves unknown height at the first scan', () => {
+    const dimensions=(height,width)=>segment(0xf8,Buffer.from([4,2,height>>8,height&255,width>>8,width&255]));
+    assert.equal(parseJPEG(stream(frame(0xf7),dimensions(2,3),scan([1],0,0))).valid,false);
+    assert.equal(parseJPEG(stream(dimensions(2,3),frame(0xf7),scan([1],0,0))).valid,false);
+    const unknown=frame(0xf7); unknown[5]=unknown[6]=unknown[7]=unknown[8]=0;
+    assert.equal(parseJPEG(stream(dimensions(2,3),unknown,scan([1],0,0))).valid,true);
+    const unknownHeight=frame(0xf7); unknownHeight[5]=unknownHeight[6]=0;
+    assert.equal(parseJPEG(stream(unknownHeight,scan([1],0,0),dimensions(2,1))).valid,true);
+    assert.equal(parseJPEG(stream(unknownHeight,scan([1],0,0),segment(0xfe,Buffer.alloc(0)),dimensions(2,1))).valid,false);
+    assert.equal(parseJPEG(stream(frame(0xf7,[1,2]),scan([1],0,0),scan([2],0,0),dimensions(2,3))).valid,false);
+    // Repeating already resolved dimensions does not change the frame.
+    assert.equal(parseJPEG(stream(frame(0xf7,[1,2]),scan([1],0,0),scan([2],0,0),dimensions(1,1))).valid,true);
+});
+
+function lsSubsampled(height=12,width=12) {
+    return segment(0xf7,Buffer.from([8,height>>8,height&255,width>>8,width&255,3,1,0x24,0,2,0x21,0,3,0x12,0]));
+}
+
+test('JPEG-LS permits line subsampling and requires equal sample-interleaved extents', () => {
+    assert.equal(parseJPEG(stream(lsSubsampled(),scan([1,2,3],0,1))).valid,true);
+    assert.equal(parseJPEG(stream(lsSubsampled(),scan([1,2,3],0,2))).valid,false);
+    assert.equal(parseJPEG(stream(lsSubsampled(1,1),scan([1,2,3],0,2))).valid,true);
+    assert.equal(parseJPEG(stream(lsSubsampled(0,1),scan([1,2,3],0,2),segment(0xdc,Buffer.from([0,12])))).valid,false);
+    assert.equal(parseJPEG(stream(lsSubsampled(0,1),scan([1,2,3],0,2),segment(0xdc,Buffer.from([0,1])))).valid,true);
+    assert.equal(parseJPEG(stream(frame(0xf7,[1,2]),scan([2,1],0,1))).valid,false);
+    assert.equal(parseJPEG(stream(frame(0xf7,[1,2]),scan([1,3],0,2))).valid,false);
+});
+
+test('JPEG-LS mapping tables have whole entries and matching adjacent continuations', () => {
+    const table=segment(0xf8,Buffer.concat([Buffer.from([2,1,1]),Buffer.alloc(256)]));
+    assert.equal(parseJPEG(stream(table)).valid,true);
+    assert.equal(parseJPEG(stream(table,frame(0xf7),scan([1],0,0,0,1))).valid,true);
+    assert.equal(parseJPEG(stream(frame(0xf7),scan([1],0,0,0,1))).valid,true); // External abbreviated table.
+    assert.equal(parseJPEG(stream(table,frame(0xf7),scan([1],0,0,1,1))).valid,false);
+    const half=segment(0xf8,Buffer.concat([Buffer.from([2,1,1]),Buffer.alloc(128)]));
+    const rest=segment(0xf8,Buffer.concat([Buffer.from([3,1,1]),Buffer.alloc(128)]));
+    assert.equal(parseJPEG(stream(half,rest,frame(0xf7),scan([1],0,0,0,1))).valid,true);
+    assert.equal(parseJPEG(stream(half,frame(0xf7),scan([1],0,0,0,1))).valid,false);
+    for(const parts of [[rest],[half,segment(0xfe,Buffer.alloc(0)),rest],
+        [half,segment(0xf8,Buffer.from([3,2,1,0]))],[half,segment(0xf8,Buffer.from([3,1,2,0,0]))],
+        [segment(0xf8,Buffer.from([2,1,2,0]))],[segment(0xf8,Buffer.from([2,1,1]))]])
+        assert.equal(parseJPEG(stream(...parts)).valid,false);
+});
+
+test('JPEG marker families cannot mix reserved codes and classic tables with JPEG-LS', () => {
+    assert.equal(parseJPEG(jpeg(segment(0x02,Buffer.alloc(0)))).valid,false);
+    for(const marker of [0xdb,0xc4,0xcc,0x01]){
+        const tables=marker===0xdb ? segment(marker,Buffer.concat([Buffer.from([0]),Buffer.alloc(64,1)])) :
+            marker===0xc4 ? segment(marker,Buffer.from([0,1,...Array(15).fill(0),0])) :
+            marker===0xcc ? segment(marker,Buffer.from([0,0])) : Buffer.from([255,1]);
+        for(const parts of [[tables,frame(0xf7),scan([1],0,0)],[frame(0xf7),tables,scan([1],0,0)]])
+            assert.equal(parseJPEG(stream(...parts)).valid,false);
+    }
+    assert.equal(parseJPEG(stream(segment(0xf8,Buffer.from([1,...Array(10).fill(0)])),frame(),scan())).valid,false);
+});
+
+function changeJ2K(marker,replacement,{tile=false}={}) {
+    const bytes=fs.readFileSync(path.join(__dirname,'fixtures/openjpeg-3x2.j2k'));
+    const sot=bytes.indexOf(Buffer.from([255,144])),sod=bytes.indexOf(Buffer.from([255,147]));
+    const offset=tile ? sod : bytes.indexOf(Buffer.from([255,marker]));
+    const length=tile ? 0 : bytes.readUInt16BE(offset+2)+2;
+    const changed=Buffer.concat([bytes.subarray(0,offset),replacement,bytes.subarray(offset+length)]);
+    if(tile) changed.writeUInt32BE(bytes.readUInt32BE(sot+6)+replacement.length,sot+6);
+    return changed;
+}
+
+test('JPEG 2000 coding defaults reject reserved fields and malformed precincts', () => {
+    const bytes=fs.readFileSync(path.join(__dirname,'fixtures/openjpeg-3x2.j2k')),offset=bytes.indexOf(Buffer.from([255,82]));
+    for(const [delta,value] of [[4,0x80],[8,2],[12,0x80],[13,2]]){
+        const changed=Buffer.from(bytes); changed[offset+delta]=value;
+        assert.equal(parseJPEG(changed).valid,false);
+    }
+    const cod=Buffer.from([1,0,0,1,1,1,4,4,0,1,0,0x11]);
+    assert.equal(parseJPEG(changeJ2K(0x52,segment(0x52,cod))).valid,true);
+    cod[11]=0;
+    assert.equal(parseJPEG(changeJ2K(0x52,segment(0x52,cod))).valid,false);
+});
+
+test('JPEG 2000 default quantizers cover active subbands and allow retained extra steps', () => {
+    assert.equal(parseJPEG(changeJ2K(0x5c,segment(0x5c,Buffer.from([0x40,0x40])))).valid,false);
+    assert.equal(parseJPEG(changeJ2K(0x5c,segment(0x5c,Buffer.from([0x40,...Array(7).fill(0x40)])))).valid,true);
+    const bytes=j2k(),qcd=bytes.indexOf(Buffer.from([255,92]));
+    for(const payload of [Buffer.from([0,1,2]),Buffer.from([2,0,1,0,1])])
+        assert.equal(parseJPEG(Buffer.concat([bytes.subarray(0,qcd),segment(0x5c,payload),bytes.subarray(qcd+6)])).valid,false);
+});
+
+test('JPEG 2000 marker placement and default/component multiplicity respect header scopes', () => {
+    for(const marker of [0x55,0x57,0x60,0x63])
+        assert.equal(parseJPEG(changeJ2K(marker,segment(marker,Buffer.alloc(marker===0x63 ? 12 : 2)),{tile:true})).valid,false);
+    const bytes=fs.readFileSync(path.join(__dirname,'fixtures/openjpeg-3x2.j2k')),sot=bytes.indexOf(Buffer.from([255,144]));
+    for(const marker of [0x58,0x61,0x91,0x92])
+        assert.equal(parseJPEG(Buffer.concat([bytes.subarray(0,sot),segment(marker,Buffer.from([0])),bytes.subarray(sot)])).valid,false);
+    for(const marker of [0x52,0x5c]){
+        const offset=bytes.indexOf(Buffer.from([255,marker])),end=offset+2+bytes.readUInt16BE(offset+2),copy=bytes.subarray(offset,end);
+        assert.equal(parseJPEG(Buffer.concat([bytes.subarray(0,sot),copy,bytes.subarray(sot)])).valid,false);
+        assert.equal(parseJPEG(changeJ2K(marker,copy,{tile:true})).valid,true);
+        assert.equal(parseJPEG(changeJ2K(marker,Buffer.concat([copy,copy]),{tile:true})).valid,false);
+    }
+    const coc=segment(0x53,Buffer.from([0,0,0,4,4,0,1]));
+    const qcc=segment(0x5d,Buffer.from([0,0x40,0x40]));
+    assert.equal(parseJPEG(changeJ2K(0x53,Buffer.concat([coc,qcc]),{tile:true})).valid,true);
+    assert.equal(parseJPEG(changeJ2K(0x53,Buffer.concat([coc,coc]),{tile:true})).valid,false);
+    assert.equal(parseJPEG(changeJ2K(0x5d,Buffer.concat([qcc,qcc]),{tile:true})).valid,false);
+});
+
+test('JPEG 2000 coding/quantization overrides cannot occur in later tile parts or exceed part 254', () => {
+    const bytes=j2k(),sot=bytes.indexOf(Buffer.from([255,144]));
+    const first=Buffer.from(bytes.subarray(0,-2)); first[sot+11]=0;
+    const tilePart=(part,extra=Buffer.alloc(0))=>{
+        const payload=Buffer.alloc(8); payload.writeUInt32BE(15+extra.length,2); payload[6]=part;
+        return Buffer.concat([segment(0x90,payload),extra,Buffer.from([255,147,0])]);
+    };
+    assert.equal(parseJPEG(Buffer.concat([first,tilePart(1),Buffer.from([255,217])])).valid,true);
+    const cod=segment(0x52,Buffer.from([0,0,0,1,0,0,4,4,0,1]));
+    assert.equal(parseJPEG(Buffer.concat([first,tilePart(1,cod),Buffer.from([255,217])])).valid,false);
+    const parts=Array.from({length:254},(_,index)=>tilePart(index+1));
+    assert.equal(parseJPEG(Buffer.concat([first,...parts,Buffer.from([255,217])])).valid,true);
+    assert.equal(parseJPEG(Buffer.concat([first,...parts,tilePart(255),Buffer.from([255,217])])).valid,false);
+});
+
+test('EXIF identification requires the complete six-byte signature', () => {
+    const context=loadJPEG();
+    assert.equal(context.isEXIF('Exif\0\0payload'),true);
+    for(const payload of ['Exif\0','Exif\0Xpayload','ExifXXpayload']) assert.equal(context.isEXIF(payload),false);
+    assert.equal(context.jpeg_headerdump_name('63').shortname,'J2K-CRG');
+});
+
+test('JPEG 2000 wavelet transforms and quantizers agree in both directions', () => {
+    const bytes=fs.readFileSync(path.join(__dirname,'fixtures/openjpeg-3x2.j2k'));
+    const cod=bytes.indexOf(Buffer.from([255,82])), changed=Buffer.from(bytes);
+    changed[cod+13]=0;
+    assert.equal(parseJPEG(changed).valid,false);
+    // A genuine OpenJPEG 2.5.4 irreversible RGB codestream, generated with Pillow.
+    const irreversible=Buffer.from('/0//UQAvAAAAAAADAAAAAgAAAAAAAAAAAAAAAwAAAAIAAAAAAAAAAAADBwEBBwEBBwEB/1IADAAAAAEAAQQEAAD/XAALQkgkV9NX01di/2QAJQABQ3JlYXRlZCBieSBPcGVuSlBFRyB2ZXJzaW9uIDIuNS40/5AACgAAAAAAIgAB/5PPwAwIUVPPwAwIcQfPwAgIj4CAgP/Z','base64');
+    assert.equal(parseJPEG(irreversible).valid,true);
+    irreversible[irreversible.indexOf(Buffer.from([255,82]))+13]=1;
+    assert.equal(parseJPEG(irreversible).valid,false);
+    assert.equal(parseJPEG(changeJ2K(0x5c,segment(0x5c,Buffer.from([0x40,0x41,0x40,0x40,0x40])))).valid,false);
+});
+
+test('JPEG 2000 MCT requires equal first-three precisions, separations and wavelets', () => {
+    const bytes=fs.readFileSync(path.join(__dirname,'fixtures/openjpeg-3x2.j2k'));
+    const cod=bytes.indexOf(Buffer.from([255,82])), siz=bytes.indexOf(Buffer.from([255,81]));
+    const mct=Buffer.from(bytes); mct[cod+8]=1;
+    assert.equal(parseJPEG(mct).valid,true);
+    for(const [delta,value] of [[43,6],[44,2],[45,2]]){
+        const changed=Buffer.from(mct); changed[siz+delta]=value;
+        assert.equal(parseJPEG(changed).valid,false);
+    }
+    const coc=segment(0x53,Buffer.from([0,0,0,4,4,0,0]));
+    const qcc=segment(0x5d,Buffer.from([0,2,0,0]));
+    const overrides=changeJ2K(0x53,Buffer.concat([coc,qcc]),{tile:true}); overrides[cod+8]=1;
+    assert.equal(parseJPEG(overrides).valid,false);
+    overrides[cod+8]=0;
+    assert.equal(parseJPEG(overrides).valid,true);
+});
+
+function insertJ2KMain(extra,bytes=j2k()) {
+    const offset=bytes.indexOf(Buffer.from([255,144]));
+    return Buffer.concat([bytes.subarray(0,offset),extra,bytes.subarray(offset)]);
+}
+
+test('JPEG 2000 COM, CRG and POC validate bodies and per-header multiplicity', () => {
+    const goodPOC=segment(0x5f,Buffer.from([0,0,0,1,1,1,0]));
+    const goodCRG=segment(0x63,Buffer.alloc(4));
+    for(const extra of [goodPOC,goodCRG,segment(0x64,Buffer.from([0,0,65])),segment(0x64,Buffer.from([0,1,65]))])
+        assert.equal(parseJPEG(insertJ2KMain(extra)).valid,true);
+    for(const extra of [segment(0x64,Buffer.alloc(0)),segment(0x64,Buffer.from([0,2,65])),segment(0x63,Buffer.alloc(8)),
+        segment(0x5f,Buffer.alloc(0)),segment(0x5f,Buffer.alloc(6)),Buffer.concat([goodCRG,goodCRG]),Buffer.concat([goodPOC,goodPOC])])
+        assert.equal(parseJPEG(insertJ2KMain(extra)).valid,false);
+    for(const [index,value] of [[0,33],[3,0],[4,0],[4,34],[6,5]]){
+        const poc=Buffer.from([0,0,0,1,1,1,0]); poc[index]=value;
+        assert.equal(parseJPEG(insertJ2KMain(segment(0x5f,poc))).valid,false);
+    }
+    assert.equal(parseJPEG(insertJ2KMain(segment(0x5f,Buffer.from([0,0,0,1,33,0,4])))).valid,true);
+});
+
+test('JPEG 2000 indexed pointer fragments permit numerical ordering and valid continuations', () => {
+    const tlm=segment(0x55,Buffer.from([0,0,0,15]));
+    assert.equal(parseJPEG(insertJ2KMain(tlm)).valid,true);
+    assert.equal(parseJPEG(insertJ2KMain(tlm,j2k({psot:0}))).valid,false);
+    for(const data of [Buffer.alloc(0),Buffer.from([0,0x30,0,15]),Buffer.from([0,0x80,0,15]),Buffer.from([0,1,0,15]),Buffer.from([0,0,0,13]),Buffer.from([0,0,0,16]),Buffer.from([0,0,0])])
+        assert.equal(parseJPEG(insertJ2KMain(segment(0x55,data))).valid,false);
+    assert.equal(parseJPEG(insertJ2KMain(Buffer.concat([tlm,tlm]))).valid,false);
+    // A PLM group's two packet lengths are split over two out-of-order markers.
+    const plm=Buffer.concat([segment(0x57,Buffer.from([1,1])),segment(0x57,Buffer.from([0,2,1]))]);
+    assert.equal(parseJPEG(insertJ2KMain(plm)).valid,true);
+    const splitN=Buffer.concat([segment(0x57,Buffer.from([0,1])),segment(0x57,Buffer.from([1,0]))]);
+    assert.equal(parseJPEG(insertJ2KMain(splitN)).valid,true);
+    for(const data of [Buffer.alloc(0),Buffer.from([0,2,1]),Buffer.from([0,1,128]),Buffer.from([0,2,128]),Buffer.from([0,0,0])])
+        assert.equal(parseJPEG(insertJ2KMain(segment(0x57,data))).valid,false);
+    // Nppm covers two complete five-byte opaque headers, split across markers.
+    const ppm=Buffer.concat([segment(0x60,Buffer.from([1,0,0,0,0,0])),segment(0x60,Buffer.from([0,0,0,0,10,0,0,0,0,0]))]);
+    assert.equal(parseJPEG(insertJ2KMain(ppm)).valid,true);
+    for(const data of [Buffer.alloc(0),Buffer.from([0,0,0,0]),Buffer.from([0,0,0,0,1]),Buffer.from([0,0,0,0,0,0,0,0,0])])
+        assert.equal(parseJPEG(insertJ2KMain(segment(0x60,data))).valid,false);
+    const ppt=segment(0x61,Buffer.from([0,0]));
+    const withPPT=changeJ2K(0x61,ppt,{tile:true});
+    assert.equal(parseJPEG(withPPT).valid,true);
+    assert.equal(parseJPEG(insertJ2KMain(ppm,withPPT)).valid,false);
+    assert.equal(parseJPEG(changeJ2K(0x58,segment(0x58,Buffer.from([0,1])),{tile:true})).valid,true);
+    for(const data of [Buffer.alloc(0),Buffer.from([0]),Buffer.from([0,128])])
+        assert.equal(parseJPEG(changeJ2K(0x58,segment(0x58,data),{tile:true})).valid,false);
+});
+
+test('JPEG 2000 later tile-part POC is allowed after a first-part POC', () => {
+    const poc=segment(0x5f,Buffer.from([0,0,0,1,1,1,0]));
+    const bytes=j2k(),offset=bytes.indexOf(Buffer.from([255,144]));
+    const second=(extra)=>{
+        const sot=Buffer.alloc(8); sot.writeUInt32BE(15+extra.length,2); sot[6]=1; sot[7]=2;
+        return Buffer.concat([segment(0x90,sot),extra,Buffer.from([255,147,0,255,217])]);
+    };
+    const first=Buffer.from(insertJ2KMain(Buffer.alloc(0),bytes).subarray(0,-2)); first[offset+11]=2;
+    assert.equal(parseJPEG(Buffer.concat([first,second(poc)])).valid,false);
+    const withPOC=Buffer.concat([first.subarray(0,offset+12),poc,first.subarray(offset+12)]);
+    withPOC.writeUInt32BE(15+poc.length,offset+6);
+    assert.equal(parseJPEG(Buffer.concat([withPOC,second(poc)])).valid,true);
+});
+
+test('Invalid structures retain later safely delimited headers and exact raw contents', () => {
+    const malformed=segment(0xdb,Buffer.from([0,1])), comment=segment(0xfe,Buffer.from('still available'));
+    const result=parseJPEG(stream(malformed,comment,frame(),scan()));
+    assert.equal(result.valid,false);
+    assert.equal(result.headers.find(header=>header.type==='fe').content,'still available');
+    assert.equal(result.headers.find(header=>header.type==='c0').extendeddata.imgw,1);
+    assert.equal(result.headers.at(-1).type,'d9');
+    assert.equal(result.headers.at(-1).recovered,true);
+    assert.equal(result.nextp,result.filesize);
+    assert.ok(result.warnings.some(warning=>warning.includes('unverified')));
+    const badCOD=changeJ2K(0x52,segment(0x52,Buffer.from([0])));
+    const j2kResult=parseJPEG(badCOD);
+    assert.equal(j2kResult.valid,false);
+    assert.ok(j2kResult.headers.some(header=>header.type==='93'));
+    assert.equal(j2kResult.headers.at(-1).type,'d9');
+    assert.equal(j2kResult.headers.at(-1).desc.shortname,'J2K-EOC');
+});
+
+test('Truncated segments retain declared lengths, available bytes and complete fields', () => {
+    const bytes=stream(frame(),scan());
+    const partial=parseJPEG(bytes.subarray(0,11));
+    const header=partial.headers.at(-1);
+    assert.equal(partial.valid,false);
+    assert.equal(header.type,'c0');
+    assert.equal(header.len,11);
+    assert.equal(header.truncated,true);
+    assert.equal(header.content,bytes.subarray(6,11).toString('latin1'));
+    assert.equal(header.extendeddata.imgw,1);
+    assert.equal(header.extendeddata.components.length,0);
+    assert.equal(header.extendeddata.ncomponentsstr,'Unknown (truncated)');
+    assert.equal(partial.nextp,partial.filesize);
+    const shortLength=parseJPEG(Buffer.from([255,216,255,254,0]));
+    assert.equal(shortLength.headers.at(-1).content,'\0');
+    assert.equal(shortLength.headers.at(-1).contentlen,1);
+    const sosOffset=bytes.indexOf(Buffer.from([255,218]));
+    const shortSOS=parseJPEG(bytes.subarray(0,sosOffset+7));
+    const sos=shortSOS.headers.at(-1);
+    assert.equal(sos.truncated,true);
+    assert.equal(sos.extendeddata.components.length,1);
+    assert.equal(sos.extendeddata.sss,'');
+    assert.ok(shortSOS.warnings.some(warning=>warning.includes('truncated')));
+    const malformed=parseJPEG(Buffer.from([255,216,255,254,0,1,65]));
+    assert.equal(malformed.headers.at(-1).truncated,false);
+});
+
+test('Incorrect JPEG 2000 tile lengths retain safely found EOC and available coded data', () => {
+    for(const psot of [14,16,1000]){
+        const bytes=j2k({psot}),result=parseJPEG(bytes);
+        assert.equal(result.valid,false);
+        assert.equal(result.headers.find(header=>header.type==='93').content,'\0');
+        assert.equal(result.headers.at(-1).type,'d9');
+        assert.equal(result.nextp,bytes.length);
+        assert.ok(result.warnings.some(warning=>warning.includes('unverified')));
+    }
+    const bytes=j2k({psot:1000}).subarray(0,-2),result=parseJPEG(bytes);
+    assert.equal(result.headers.at(-1).truncated,true);
+    assert.equal(result.headers.at(-1).content,'\0');
+    assert.equal(result.nextp,bytes.length);
 });
