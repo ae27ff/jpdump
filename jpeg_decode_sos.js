@@ -90,9 +90,11 @@ function unstuffSOSHCData(data){
         c2 = data.charCodeAt(i+1);
         //console.log(c.toString(16)+" "+c2.toString(16));
         if(c===0xFF && c2===0x00){
-            i+=1;//skip the next null
+            data_unstuffed += data.charAt(i);
+            i+=1;//discard the stuffed zero, not the entropy byte
+        }else{
+            data_unstuffed += data.charAt(i);
         }
-        data_unstuffed += data.charAt(i);
     }
     return data_unstuffed;
 }
