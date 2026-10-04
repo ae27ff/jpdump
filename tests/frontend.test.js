@@ -15,6 +15,7 @@ function loadFrontend(readTags) {
     class FileReader {
         constructor() { readers.push(this); }
         readAsBinaryString(file) { this.file = file; }
+        readAsArrayBuffer(file) { this.file = file; }
     }
     const context = vm.createContext({
         btoa, Image, FileReader,
@@ -29,7 +30,7 @@ function loadFrontend(readTags) {
             }
         }
     });
-    vm.runInContext(fs.readFileSync(path.join(projectRoot, 'frontend.js'), 'utf8'), context);
+    for (const file of ['jpeg_util.js','frontend.js']) vm.runInContext(fs.readFileSync(path.join(projectRoot, file), 'utf8'), context);
     context.addPreviewEXIF = (parent, tags) => attached.push({ parent, tags });
     const select = file => context.handleFileSelect({ target: { files: file ? [file] : [] } });
     const completeRead = (reader, data) => reader.onload({ target: { result: data } });
@@ -123,4 +124,30 @@ test('An empty file selection does not start a read', () => {
     const ui = loadFrontend();
     ui.select();
     assert.equal(ui.readers.length, 0);
+});
+
+test('ArrayBuffer upload conversion preserves binary bytes without leaking debug references', () => {
+    const ui=loadFrontend();
+    ui.select('binary.jpg');
+    const bytes=Uint8Array.from([0,128,255]);
+    ui.completeRead(ui.readers[0],bytes.buffer);
+    assert.equal(ui.context.g_ImageData,'\0\x80\xff');
+    assert.equal(ui.context.window.g_debug_event,undefined);
+});
+
+test('A read failure clears stale results while an older failure cannot replace a newer selection', () => {
+    const ui=loadFrontend(), elements={image:{},preview:{removeAttribute(name){this.removed=name;}}};
+    let released=0;
+    ui.context.releaseResultContent=()=>{released++;};
+    ui.context.document.getElementById=id=>elements[id];
+    ui.context.g_ImageData='old image';
+    ui.select('first.jpg'); ui.select('second.jpg');
+    ui.readers[0].onerror();
+    assert.equal(released,0);
+    assert.equal(ui.context.g_ImageData,'old image');
+    ui.readers[1].onerror();
+    assert.equal(released,1);
+    assert.equal(ui.context.g_ImageData,'');
+    assert.equal(elements.preview.removed,'src');
+    assert.match(elements.image.innerHTML,/Unable to read/);
 });
