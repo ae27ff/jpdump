@@ -421,7 +421,12 @@
     function findEXIFinJPEG(file) {
         return findJPEGAPP1(file, function(dataView, payloadStart, payloadLength) {
             if (payloadLength < 6 || getStringFromDB(dataView, payloadStart, 6) !== "Exif\0\0") return;
-            return readEXIFData(dataView, payloadStart);
+            try {
+                var segmentView = new DataView(dataView.buffer, dataView.byteOffset + payloadStart, payloadLength);
+                return readEXIFData(segmentView, 0) || undefined;
+            } catch (error) {
+                return;
+            }
         });
     }
 
@@ -684,7 +689,7 @@
                     // extract the thumbnail
                         var tOffset = tiffStart + thumbTags.JpegIFOffset;
                         var tLength = thumbTags.JpegIFByteCount;
-                        thumbTags['blob'] = new Blob([new Uint8Array(dataView.buffer, tOffset, tLength)], {
+                        thumbTags['blob'] = new Blob([new Uint8Array(dataView.buffer, dataView.byteOffset + tOffset, tLength)], {
                             type: 'image/jpeg'
                         });
                     }
