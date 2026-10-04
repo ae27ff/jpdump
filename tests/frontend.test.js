@@ -3,10 +3,11 @@ const test = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { projectRoot } = require('./metadata-helpers');
+const { projectRoot, loadEXIF } = require('./metadata-helpers');
+const { exifSegment } = require('./exif-helpers');
 
-function loadFrontend() {
-    const images = [], readers = [], metadataCallbacks = [], attached = [];
+function loadFrontend(readTags) {
+    const images = [], readers = [], metadataReads = [], attached = [];
     const preview = {};
     class Image {
         constructor() { images.push(this); }
@@ -22,57 +23,60 @@ function loadFrontend() {
         window: { addEventListener() {} },
         document: { getElementById: () => preview },
         EXIF: {
-            getData(image, callback) { metadataCallbacks.push(() => callback.call(image)); },
-            getAllTags(image) { return { source: image.src }; }
+            readFromBinaryFile(bytes) {
+                metadataReads.push(bytes);
+                return readTags ? readTags(bytes) : { source: Buffer.from(bytes).toString('latin1'), thumbnail: {} };
+            }
         }
     });
     vm.runInContext(fs.readFileSync(path.join(projectRoot, 'frontend.js'), 'utf8'), context);
     context.addPreviewEXIF = (parent, tags) => attached.push({ parent, tags });
     const select = file => context.handleFileSelect({ target: { files: file ? [file] : [] } });
     const completeRead = (reader, data) => reader.onload({ target: { result: data } });
-    return { context, images, readers, metadataCallbacks, attached, preview, select, completeRead };
+    return { context, images, readers, metadataReads, attached, preview, select, completeRead };
 }
 
-test('EXIF callbacks retain their own panel when images finish in reverse order', () => {
+test('EXIF panels receive metadata directly from bytes with one read per file', () => {
     const ui = loadFrontend();
     const first = {}, second = {};
     ui.context.g_ImageData = 'same image';
     ui.context.getPreviewEXIF(first);
     ui.context.getPreviewEXIF(second);
-    ui.images[1].onload();
-    ui.images[0].onload();
-    ui.metadataCallbacks.forEach(callback => callback());
-    assert.deepEqual(ui.attached.map(item => item.parent), [second, first]);
-    assert.equal(ui.attached[0].tags.source, 'data:application/jpeg;base64,' + btoa('same image'));
+    assert.deepEqual(ui.attached.map(item => item.parent), [first, second]);
+    assert.equal(ui.attached[0].tags.source, 'same image');
+    assert.equal(ui.metadataReads.length, 1);
+    assert.equal(ui.images.length, 0);
 });
 
-test('EXIF image load callbacks from an older selection are discarded', () => {
+test('EXIF is extracted even when the file has no decodable image', () => {
+    const exif = loadEXIF().EXIF;
+    const ui = loadFrontend(bytes => exif.readFromBinaryFile(bytes));
+    const bytes = Buffer.concat([Buffer.from([0xff,0xd8]), exifSegment(), Buffer.from([0xff,0xd9])]);
+    ui.context.g_ImageData = bytes.toString('latin1');
+    ui.context.getPreviewEXIF({});
+    assert.equal(ui.attached[0].tags.Make, 'A');
+    assert.equal(ui.images.length, 0);
+});
+
+test('A new file selection invalidates cached EXIF', () => {
     const ui = loadFrontend();
     ui.select('first.jpg');
     ui.completeRead(ui.readers[0], 'first');
     ui.context.getPreviewEXIF({});
     ui.select('second.jpg');
-    ui.images[0].onload();
-    assert.equal(ui.metadataCallbacks.length, 0);
-    assert.equal(ui.attached.length, 0);
+    assert.equal(ui.context.g_ExifCache, null);
+    ui.completeRead(ui.readers[1], 'second');
+    ui.context.getPreviewEXIF({});
+    assert.equal(ui.metadataReads.length, 2);
+    assert.equal(ui.attached[1].tags.source, 'second');
 });
 
-test('EXIF metadata completion after a newer selection cannot update either panel', () => {
+test('Formatting EXIF does not mutate the cached data for another panel', () => {
     const ui = loadFrontend();
-    const oldParent = {}, currentParent = {};
-    ui.select('first.jpg');
-    ui.completeRead(ui.readers[0], 'first');
-    ui.context.getPreviewEXIF(oldParent);
-    ui.images[0].onload();
-    ui.select('second.jpg');
-    ui.completeRead(ui.readers[1], 'second');
-    ui.context.getPreviewEXIF(currentParent);
-    ui.images[1].onload();
-    ui.metadataCallbacks[1]();
-    ui.metadataCallbacks[0]();
-    assert.equal(ui.attached.length, 1);
-    assert.equal(ui.attached[0].parent, currentParent);
-    assert.equal(ui.attached[0].tags.source, 'data:application/jpeg;base64,' + btoa('second'));
+    const tags = { thumbnail: {}, object: { value: 1 } };
+    const first = ui.context.displayEXIFInfo(tags);
+    assert.deepEqual(tags, { thumbnail: {}, object: { value: 1 } });
+    assert.equal(ui.context.displayEXIFInfo(tags), first);
 });
 
 test('An older FileReader cannot overwrite the current file or preview', () => {
@@ -100,18 +104,19 @@ test('An older preview event cannot render results after a new selection', () =>
     assert.equal(processed, 1);
 });
 
-test('EXIF callbacks cannot update a panel replaced by a later results render', () => {
+test('A second results render reuses EXIF parsed from the same bytes', () => {
     const ui = loadFrontend();
     ui.context.g_ImageData = 'image';
     ui.context.getPreviewEXIF({});
-    ui.images[0].onload();
     const element = { appendChild() {}, children: [] };
     ui.context.document.getElementById = () => element;
     ui.context.accordion_create = () => element;
     ui.context.displayImageInfo = () => '';
     ui.context.displayResults({ headers: [] });
-    ui.metadataCallbacks[0]();
-    assert.equal(ui.attached.length, 0);
+    const currentParent = {};
+    ui.context.getPreviewEXIF(currentParent);
+    assert.equal(ui.attached[1].parent, currentParent);
+    assert.equal(ui.metadataReads.length, 1);
 });
 
 test('An empty file selection does not start a read', () => {

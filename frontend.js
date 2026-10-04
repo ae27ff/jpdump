@@ -1,6 +1,8 @@
 var g_ImageData="";
 var g_ImageRequestId=0;
 var g_ResultRequestId=0;
+var g_ExifCache=null;
+var g_ExifCacheData=null;
 branding.init();
 window.addEventListener('load',function(){
   var up=document.getElementById('upload');
@@ -17,6 +19,8 @@ function handleFileSelect(evt) {
 	var f = files[0];
 	if (!f) return;
 	var requestId = ++g_ImageRequestId;
+	g_ExifCache=null;
+	g_ExifCacheData=null;
 
 	var reader = new FileReader();
 
@@ -72,19 +76,11 @@ function addPreviewEXIF(parent,json){
 	parent.children[1].appendChild(elEXIF);
 }
 function getPreviewEXIF(parent){
-	var requestId = g_ImageRequestId;
-	var resultId = g_ResultRequestId;
-	var imageData = g_ImageData;
-	var image = new Image();
-	image.onload = function() {
-		if (requestId !== g_ImageRequestId || resultId !== g_ResultRequestId) return;
-		EXIF.getData(image, function() {
-			if (requestId !== g_ImageRequestId || resultId !== g_ResultRequestId) return;
-			var allMetaData = EXIF.getAllTags(this);
-			addPreviewEXIF(parent,allMetaData);
-		});
-	};
-	image.src="data:application/jpeg;base64," + btoa(imageData);
+	if(g_ExifCache===null || g_ExifCacheData!==g_ImageData){
+		g_ExifCache=EXIF.readFromBinaryFile(stobuf(g_ImageData)) || {};
+		g_ExifCacheData=g_ImageData;
+	}
+	addPreviewEXIF(parent,g_ExifCache);
 }
 
 function previewImage(data, requestId){
@@ -227,25 +223,25 @@ function displayJFIFInfo(jfif){
 }
 function displayEXIFInfo(exif){
 	var html="<ul>"
-	for(prop in exif){
+	for(var prop in exif){
+		if(!Object.prototype.hasOwnProperty.call(exif,prop)) continue;
+		var value=exif[prop];
 		//console.log(prop)
 		//console.log(typeof exif[prop])
-		if(exif[prop] !== null && typeof exif[prop] === 'object' && !(exif[prop] instanceof Number || exif[prop] instanceof Array)){
-			console.log(Object.keys(exif[prop]).length)
-			console.log(exif[prop])
-			if(Object.keys(exif[prop]).length===0){
-				exif[prop]="Not present"
+		if(value !== null && typeof value === 'object' && !(value instanceof Number || value instanceof Array)){
+			if(Object.keys(value).length===0){
+				value="Not present"
 			}else{
 				//exif[prop]="Present"
-				exif[prop]=JSON.stringify(exif[prop])
+				value=JSON.stringify(value)
 			}
 		}
-		if(exif[prop] instanceof Array){
-			html+=displayDetailPre(prop,JSON.stringify(exif[prop]));
-			if(isByteArray(exif[prop])) html+=displayDetail(prop+" Raw bytes",getContentURL(array2string(exif[prop])));
+		if(value instanceof Array){
+			html+=displayDetailPre(prop,JSON.stringify(value));
+			if(isByteArray(value)) html+=displayDetail(prop+" Raw bytes",getContentURL(array2string(value)));
 			html+="</ul><br><ul>";
 		}else{
-			html+=displayDetailPre(prop,exif[prop])+"</ul><br><ul>"
+			html+=displayDetailPre(prop,value)+"</ul><br><ul>"
 		}
 		//console.log(exif[prop])
 		//console.log(" ")
