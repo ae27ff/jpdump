@@ -177,6 +177,15 @@ function showContent(contentId, asHex, resultId){
 	return false;
 }
 
+function releaseResultContent(){
+	for(var index=0;index<g_DownloadURLs.length;index++) window.URL.revokeObjectURL(g_DownloadURLs[index]);
+	g_DownloadURLs=[];
+	g_ContentData=[];
+	hideDataOverlay();
+	document.getElementById('data-overlay-content').value='';
+	document.getElementById('data-overlay-length').innerHTML='0';
+}
+
 function displayDetailPre(name,value){
 	if(value==="") return "";
 	value=escapeHTML(value).replace(/ /g,'&nbsp;');
@@ -322,7 +331,7 @@ function displayScanComponentInfo(comp){
 
 function displayResults(info){
 	++g_ResultRequestId;
-	g_ContentData=[];
+	releaseResultContent();
 	var elImage=document.getElementById('image')
 	elImage.innerHTML="";
 	var elHeaders=[]

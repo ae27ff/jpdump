@@ -108,7 +108,7 @@ test('A second results render reuses EXIF parsed from the same bytes', () => {
     const ui = loadFrontend();
     ui.context.g_ImageData = 'image';
     ui.context.getPreviewEXIF({});
-    const element = { appendChild() {}, children: [] };
+    const element = { appendChild() {}, children: [], style: {} };
     ui.context.document.getElementById = () => element;
     ui.context.accordion_create = () => element;
     ui.context.displayImageInfo = () => '';

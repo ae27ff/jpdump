@@ -1,0 +1,38 @@
+Consolidated review follow-up
+
+Duplicate reports have been combined. All 15 confirmed issues are fixed in
+separate commits; the pre-existing .gitignore modification is preserved.
+
+01 Fixed (72ec9bf): Nonnegative parsed size for empty/invalid input.
+02 Fixed (68e8447): APP1 marker label.
+03 Fixed (ab84f7e): Unconditional binary/header console logging.
+04 Fixed (1b98a15): Truncated Adobe APP14 payloads.
+05 Fixed (decdcc7): SOF component counts and frame parameter bounds.
+06 Fixed (df91bf3): Mandatory frame/scan structure and component references.
+   Valid abbreviated table streams and legal DNL line-count redefinition remain
+   supported. DNL must immediately follow the first scan.
+07 Fixed (5264ca7): JPEG-LS entropy marker/bit-stuffing rules, including metadata
+   traversal and preservation of bit-stuffed scan bytes. Official CharLS fixture.
+08 Fixed (c5aa940): Empty/malformed IPTC resources hide later metadata.
+09 Fixed (f5d24bb): Unknown EXIF tags create an undefined property.
+10 Fixed (dba0966): Declared UTF-8 IPTC character sets.
+11 Fixed (283e731): JSON escaping in XMP conversion.
+12 Fixed (6975c0e): Comments and processing instructions in XMP conversion.
+   XMP tests now exercise the real converter with native XML parsing.
+13 Fixed (8d158ed): EXIF extraction requires successful image decoding.
+14 Fixed (e70a4a8): Eager encoding and unbounded segment previews.
+   Segment links retain raw strings; previews are computed on demand and limited
+   to 65536 bytes. Raw downloads retain all bytes and create Blobs on demand.
+15 Fixed (this commit): Blob URL lifecycle when results are replaced.
+   Replacing results revokes created URLs and clears byte references/previews.
+
+DNL continuation report: not confirmed for JPEG T.81. Section B.2.5 requires
+DNL at the end of the first scan. Entropy data after DNL without another SOS
+is not a valid JPEG scan. A legal DNL-at-scan-end regression passes and resolves
+the initially zero SOF height. A continuation without SOS is rejected.
+Reference: https://www.w3.org/Graphics/JPEG/itu-t81.pdf
+
+Validation: all 69 tests pass, all 24 JavaScript files pass syntax checks, and
+git diff --check passes. Command: node --test tests/*.test.js
+This is a structure/metadata inspector, not a complete entropy decoder. Structure
+checks do not certify decoded pixels or full compliance with every JPEG process.

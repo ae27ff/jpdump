@@ -87,7 +87,7 @@ test('Links from replaced results cannot preview or download new content', () =>
     assert.equal(ui.context.showContent(0,false,0),false);
     assert.equal(ui.context.downloadContent(0,element(),0),false);
     assert.equal(ui.urls.size,0);
-    assert.equal(ui.elements['data-overlay-content'],undefined);
+    assert.equal(ui.elements['data-overlay-content'].value,'');
     assert.equal(ui.context.g_ContentData[0],'new');
 });
 
@@ -102,4 +102,42 @@ test('IE raw downloads avoid base64 and preserve binary bytes', async () => {
     assert.deepEqual(Buffer.from(await saved[0].blob.arrayBuffer()),Buffer.from([0,255,128]));
     assert.equal(ui.encoded.length,0);
     assert.equal(ui.urls.size,0);
+});
+
+test('Replacing results revokes downloads and releases old previews and byte references', () => {
+    const ui = loadFrontend();
+    for (let i=0;i<5;i++) {
+        ui.context.displayResults({headers:[],valid:true});
+        const generation=ui.context.g_ResultRequestId;
+        ui.context.getContentURL('file-'+i);
+        const link=element();
+        link.setAttribute('download','output.bin');
+        ui.context.showContent(0,false,generation);
+        ui.context.downloadContent(0,link,generation);
+        assert.equal(ui.urls.size,1);
+        assert.equal(ui.context.g_ContentData.length,1);
+    }
+    ui.context.displayResults({headers:[],valid:true});
+    assert.equal(ui.urls.size,0);
+    assert.equal(ui.revoked.length,5);
+    assert.equal(ui.context.g_DownloadURLs.length,0);
+    assert.equal(ui.context.g_ContentData.length,0);
+    assert.equal(ui.elements['data-overlay-content'].value,'');
+    assert.equal(ui.elements['data-overlay'].style.display,'none');
+});
+
+test('Current downloads remain usable until replacement, including repeated clicks', () => {
+    const ui = loadFrontend();
+    ui.context.getContentURL('file');
+    const oldLink=element();
+    oldLink.setAttribute('download','output.bin');
+    ui.context.downloadContent(0,oldLink,0);
+    const url=oldLink.href;
+    assert.equal(ui.context.downloadContent(0,oldLink,0),true);
+    assert.ok(ui.urls.has(url));
+    assert.equal(ui.revoked.length,0);
+    ui.context.displayResults({headers:[],valid:true});
+    assert.equal(ui.context.downloadContent(0,oldLink,0),false);
+    assert.equal(ui.urls.size,0);
+    assert.deepEqual(ui.revoked,[url]);
 });
