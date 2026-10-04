@@ -125,6 +125,7 @@ function processHeader(data,p){
 	var dlb=data.charCodeAt(codep)
 	header.magic=hb
 	header.markerwidth=codep-p+1;
+	header.contentp=codep+1;
 	header.valid=true;
 	header.type=lb;
 	//console.log(hb+lb)
