@@ -168,8 +168,11 @@ function getContentURL(content){
 
 function displayDetailPre(name,value){
 	if(value==="") return "";
-	value=String(value).replaceAll(' ','&nbsp;');
-	return '<li><span class="detailname">'+name+': </span><div class="detailvalue presim">'+value+'</div></li>';
+	value=escapeHTML(value).replace(/ /g,'&nbsp;');
+	return '<li><span class="detailname">'+escapeHTML(name)+': </span><div class="detailvalue presim">'+value+'</div></li>';
+}
+function escapeHTML(value){
+	return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 function displayDetail(name,value){
 	if(value==="") return "";
