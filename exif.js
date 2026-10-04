@@ -82,7 +82,7 @@
         0xA401 : "CustomRendered",          // Special processing
         0xA402 : "ExposureMode",            // Exposure mode
         0xA403 : "WhiteBalance",            // 1 = auto white balance, 2 = manual
-        0xA404 : "DigitalZoomRation",       // Digital zoom ratio
+        0xA404 : "DigitalZoomRatio",        // Digital zoom ratio
         0xA405 : "FocalLengthIn35mmFilm",   // Equivalent foacl length assuming 35mm film camera (in mm)
         0xA406 : "SceneCaptureType",        // Type of scene
         0xA407 : "GainControl",             // Degree of overall image gain adjustment
@@ -458,12 +458,11 @@
                 var resourceStart = sizeOffset + 4;
                 var resourceEnd = resourceStart + resourceLength;
                 var paddedResourceEnd = resourceEnd + (resourceLength % 2);
-                if (resourceEnd > end || paddedResourceEnd > end) return;
-
                 if (resourceId === 0x0404) {
-                    var iptc = readIPTCData(dataView, resourceStart, resourceLength);
+                    var iptc = readIPTCData(dataView, resourceStart, Math.min(resourceLength, end - resourceStart));
                     if (Object.keys(iptc).length > 0) return iptc;
                 }
+                if (resourceEnd > end || paddedResourceEnd > end) return;
                 offset = paddedResourceEnd;
             }
         });
@@ -885,11 +884,12 @@
 
             var segmentLength = dataView.getUint16(codeOffset + 1);
             var segmentEnd = codeOffset + 1 + segmentLength;
-            if (segmentLength < 2 || segmentEnd > length) return;
+            if (segmentLength < 2) return;
             if (marker === wantedMarker) {
-                var result = onSegment(dataView, codeOffset + 3, segmentLength - 2);
+                var result = onSegment(dataView, codeOffset + 3, Math.min(segmentLength - 2, length - codeOffset - 3));
                 if (typeof result !== "undefined") return result;
             }
+            if (segmentEnd > length) return;
 
             offset = segmentEnd;
             if (marker === 0xF7) jpegLS = true;
