@@ -36,6 +36,11 @@ function loadFrontend(navigator = {}) {
     return { context, elements, urls, revoked, encoded };
 }
 
+test('Closing the data overlay does not navigate the page', () => {
+    const html=fs.readFileSync(path.join(projectRoot,'index.html'),'utf8');
+    assert.match(html,/onclick="hideDataOverlay\(\);return false"/);
+});
+
 test('Rendering a large JPEG does not encode segment data or create download Blobs', () => {
     const ui = loadFrontend();
     const base = jpeg();

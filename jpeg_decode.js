@@ -758,10 +758,8 @@ function validJ2KHeader(header,previous,state){
 		if(state.crg || data.length!==4*state.siz.components) return false;
 		state.crg=true;
 	}else if(type==='5f'){
-		var owner=state.tile || state;
-		if(owner.poc || !validJ2KProgressions(data,state.siz.components)) return false;
+		if(!validJ2KProgressions(data,state.siz.components)) return false;
 		if(state.tile && state.tile.part!==0 && !state.tiles[state.tile.tileId].poc) return false;
-		owner.poc=true;
 		if(state.tile && state.tile.part===0) state.tiles[state.tile.tileId].poc=true;
 	}else if(['55','57','58','60','61'].indexOf(type)!==-1){
 		if(!validJ2KPointer(header,state)) return false;

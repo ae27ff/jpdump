@@ -92,6 +92,21 @@ test('A throwing XML parser does not prevent the metadata callback', () => {
     assert.deepEqual(Object.keys(image.xmpdata), []);
 });
 
+test('A Chromium-style parsererror document is not exposed as XMP metadata', () => {
+    class ChromiumErrorDOMParser {
+        parseFromString() {
+            const root = {
+                nodeType: 1, nodeName: 'parsererror', localName: 'parsererror',
+                namespaceURI: 'http://www.w3.org/1999/xhtml', attributes: [],
+                firstChild: null, normalize() {}
+            };
+            return { documentElement: root, getElementsByTagName: () => [root] };
+        }
+    }
+    const image = readMetadata(xmpJPEG('<broken>'), { DOMParser: ChromiumErrorDOMParser });
+    assert.deepEqual(Object.keys(image.xmpdata), []);
+});
+
 xmlTest('A legitimate parsererror element and XMLDocument without children are accepted', () => {
     class MinimalDocumentParser extends NativeDOMParser {
         parseFromString(packet) { const doc=super.parseFromString(packet); delete doc.children; return doc; }

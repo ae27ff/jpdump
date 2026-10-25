@@ -31,6 +31,9 @@ test('APP1 metadata has the correct application marker label', () => {
     assert.equal(context.jpeg_headerdump_name('c3').longname,'Start of Lossless Frame');
     assert.equal(context.jpeg_headerdump_name('f7').longname,'Start of JPEG-LS Frame');
     assert.equal(context.jpeg_headerdump_name('f8').shortname,'LSE');
+    assert.equal(context.jpeg_headerdump_name('ee').uses,'Adobe DCT Information');
+    assert.equal(context.jpeg_headerdump_name('ef').uses,'');
+    assert.equal(context.processAPP14Adobe('\0\0\0\0\0\0\0\0\0\0\0\0').colorTransform,'0 (Unknown, possibly RGB or CMYK)');
 });
 
 test('Parsing does not log binary image data or retain header objects in the console', () => {
@@ -533,13 +536,14 @@ function insertJ2KMain(extra,bytes=j2k()) {
     return Buffer.concat([bytes.subarray(0,offset),extra,bytes.subarray(offset)]);
 }
 
-test('JPEG 2000 COM, CRG and POC validate bodies and per-header multiplicity', () => {
+test('JPEG 2000 COM, CRG and POC validate bodies and legal multiplicity', () => {
     const goodPOC=segment(0x5f,Buffer.from([0,0,0,1,1,1,0]));
+    const nextPOC=segment(0x5f,Buffer.from([1,0,0,1,2,1,0]));
     const goodCRG=segment(0x63,Buffer.alloc(4));
-    for(const extra of [goodPOC,goodCRG,segment(0x64,Buffer.from([0,0,65])),segment(0x64,Buffer.from([0,1,65]))])
+    for(const extra of [goodPOC,Buffer.concat([goodPOC,nextPOC]),goodCRG,segment(0x64,Buffer.from([0,0,65])),segment(0x64,Buffer.from([0,1,65]))])
         assert.equal(parseJPEG(insertJ2KMain(extra)).valid,true);
     for(const extra of [segment(0x64,Buffer.alloc(0)),segment(0x64,Buffer.from([0,2,65])),segment(0x63,Buffer.alloc(8)),
-        segment(0x5f,Buffer.alloc(0)),segment(0x5f,Buffer.alloc(6)),Buffer.concat([goodCRG,goodCRG]),Buffer.concat([goodPOC,goodPOC])])
+        segment(0x5f,Buffer.alloc(0)),segment(0x5f,Buffer.alloc(6)),Buffer.concat([goodCRG,goodCRG])])
         assert.equal(parseJPEG(insertJ2KMain(extra)).valid,false);
     for(const [index,value] of [[0,33],[3,0],[4,0],[4,34],[6,5]]){
         const poc=Buffer.from([0,0,0,1,1,1,0]); poc[index]=value;

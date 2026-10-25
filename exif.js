@@ -922,6 +922,11 @@
         try {
             var xml = new DOMParser().parseFromString(xmpString, 'text/xml');
             if (!xml || !xml.documentElement) return;
+            // Firefox uses a dedicated namespace for parse failures, while
+            // Chromium exposes a parsererror document in the XHTML namespace.
+            // Only treat parsererror as special when it is the document root;
+            // legitimate metadata may contain an element with that local name.
+            if ((xml.documentElement.localName || xml.documentElement.nodeName) === 'parsererror') return;
             var errors=xml.getElementsByTagName('parsererror');
             for(var index=0;index<errors.length;index++)
                 if(errors[index].namespaceURI==='http://www.mozilla.org/newlayout/xml/parsererror.xml') return;

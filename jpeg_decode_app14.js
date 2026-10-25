@@ -25,7 +25,7 @@ function processAPP14Adobe(data){
 
 	switch(adobe.colorTransform){
 		case 0:
-			adobe.colorTransform+=" (Unknown, possibly RBG or CMYK)";
+			adobe.colorTransform+=" (Unknown, possibly RGB or CMYK)";
 			break;
 		case 1:
 			adobe.colorTransform+=" (YCbCr)";
