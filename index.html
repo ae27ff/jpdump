@@ -1,50 +1,98 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>jpdump - JPEG Header Viewer</title>
-<link rel="stylesheet" type="text/css" href="accordion.css">
-<link rel="stylesheet" type="text/css" href="style.css?v=1.1.2">
-<script src="compat.js"></script>
-<script src="accordion.js"></script>
-<script src="xml2json.min.js"></script>
-<script src="exif.js"></script>
-<script src="jpeg_util.js"></script>
-<script src="jpeg_header_names.js"></script>
-<script src="jpeg_decode_app14.js"></script>
-<script src="jpeg_decode_sof0.js?v=1.1"></script>
-<script src="jpeg_decode_sos.js?v=1.2.3"></script>
-<script src="jpeg_decode_jfif.js"></script>
-<script src="jpeg_decode_exif.js"></script>
-<script src="jpeg_decode.js?v=1.2.3"></script>
-<script src="branding.js"></script>
-<script src="frontend.js?v=1.2.3"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="application-version" content="2.0.0">
+<meta name="theme-color" content="#0b1320">
+<title>jpdump 2 — Image Inspector</title>
+<link rel="stylesheet" href="accordion.css?v=2.0.0">
+<link rel="stylesheet" href="style.css?v=2.0.0">
+<script src="js/util/BinaryUtils.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEGMarkers.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEGAdobe.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEGFrame.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEGScan.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEGJFIF.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEGExif.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEGTable.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEGDecoder.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEGLS.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEG2000.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEGParser.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEGSequence.js?v=2.0.0"></script>
+<script src="js/jpeg/JPEGFileModel.js?v=2.0.0"></script>
+<script src="js/analysis/FileAnalysis.js?v=2.0.0"></script>
+<script src="js/metadata/EXIFTags.js?v=2.0.0"></script>
+<script src="js/metadata/JPEGMetadata.js?v=2.0.0"></script>
+<script src="js/metadata/TIFFReader.js?v=2.0.0"></script>
+<script src="js/metadata/IPTCReader.js?v=2.0.0"></script>
+<script src="js/metadata/XMPReader.js?v=2.0.0"></script>
+<script src="js/metadata/EXIF.js?v=2.0.0"></script>
+<script src="js/metadata/XMLConverter.js?v=2.0.0"></script>
+<script src="js/ui/Accordion.js?v=2.0.0"></script>
+<script src="js/ui/Branding.js?v=2.0.0"></script>
+<script src="js/ui/ImageController.js?v=2.0.0"></script>
+<script src="js/ui/ContentView.js?v=2.0.0"></script>
+<script src="js/ui/ResultView.js?v=2.0.0"></script>
+<script src="js/ui/Inspector.js?v=2.0.0"></script>
+<script src="js/ui/Icons.js?v=2.0.0"></script>
+<script src="js/ui/Workspaces.js?v=2.0.0"></script>
+<script src="js/ui/UI.js?v=2.0.0"></script>
 <script src="/ga.js"></script>
 </head>
 <body>
-
-<h2>jpdump - JPEG Header Viewer</h2>
-<form enctype="multipart/form-data">
-<img alt="Image Preview" title="Image Preview" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gU3ZnIFZlY3RvciBJY29ucyA6IGh0dHA6Ly93d3cub25saW5ld2ViZm9udHMuY29tL2ljb24gLS0+DQo8IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDEuMS8vRU4iICJodHRwOi8vd3d3LnczLm9yZy9HcmFwaGljcy9TVkcvMS4xL0RURC9zdmcxMS5kdGQiPg0KPHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IiB2aWV3Qm94PSIwIDAgMTAwMCAxMDAwIiBlbmFibGUtYmFja2dyb3VuZD0ibmV3IDAgMCAxMDAwIDEwMDAiIHhtbDpzcGFjZT0icHJlc2VydmUiPg0KPG1ldGFkYXRhPiBTdmcgVmVjdG9yIEljb25zIDogaHR0cDovL3d3dy5vbmxpbmV3ZWJmb250cy5jb20vaWNvbiA8L21ldGFkYXRhPg0KPGc+PHBhdGggZD0iTTg4MS4xLDEzMi41SDExOC45QzU5LDEzMi41LDEwLDE4MS41LDEwLDI0MS40djUxNy4zYzAsNTkuOSw0OSwxMDguOSwxMDguOSwxMDguOWg3NjIuMmM1OS45LDAsMTA4LjktNDksMTA4LjktMTA4LjlWMjQxLjRDOTkwLDE4MS41LDk0MSwxMzIuNSw4ODEuMSwxMzIuNXogTTk0OS4yLDc0Ny4zYzAsNTQuOS0yNC41LDc5LjQtNzkuNCw3OS40SDEzMC4zYy01NC45LDAtNzkuNC0yNC41LTc5LjQtNzkuNFYyNTIuN2MwLTU0LjksMjQuNS03OS40LDc5LjQtNzkuNGg3MzkuNWM1NC45LDAsNzkuNCwyNC41LDc5LjQsNzkuNFY3NDcuM3ogTTMxNi4zLDQxOC4zTDQxOC4zLDUwMGwyNjUuNC0yMjQuNmwyMDQuMiwxODMuOHYzMDYuM0gxMTIuMVY1ODEuN0wzMTYuMyw0MTguM3ogTTE5My44LDIzNC42Yy00NS4xLDAtODEuNywzNi42LTgxLjcsODEuN3MzNi42LDgxLjcsODEuNyw4MS43czgxLjctMzYuNiw4MS43LTgxLjdTMjM4LjksMjM0LjYsMTkzLjgsMjM0LjZ6Ii8+PC9nPg0KPC9zdmc+" id="preview">
-<div id="formright">
-Select a file to analyze:<br><input id="upload" accept=".jpg,.jpeg,.jls,.j2c,.j2k,image/jpeg,image/jls" type="file" name="fileup" size=30 onclick="handleFileClick(this)">
+<div id="inspector-app" aria-label="Image file inspector">
+  <header class="jr-topbar">
+    <div class="jr-brand"><span class="jr-logo"><i data-icon="logo" aria-hidden="true"></i></span><h1>jpdump</h1></div>
+    <nav class="jr-navigation" aria-label="Application"><button type="button" class="jr-nav jr-nav-active" title="Browse the file structure, interpreted metadata and original stored bytes." data-workspace="inspect" aria-current="page" aria-controls="jr-results"><i data-icon="code-xml" aria-hidden="true"></i>Inspect</button><button type="button" class="jr-nav" title="Explore embedded data, metadata, image channels, compression and recovery tools." data-workspace="analyze" aria-controls="jr-analyze"><i data-icon="wrench" aria-hidden="true"></i>Analyze</button><button type="button" class="jr-nav" title="Choose another file to compare structure, metadata, decoded pixels or compressed image values." data-workspace="compare" aria-controls="jr-compare"><i data-icon="compare" aria-hidden="true"></i>Compare</button></nav>
+    <span class="jr-version" title="Major version 2 of jpdump.">v2</span>
+  </header>
+  <main class="jr-main">
+    <section class="jr-file" aria-label="Image summary">
+      <div class="jr-preview-box"><img id="preview" class="jr-thumbnail" alt="Selected image preview" hidden title="Browser-rendered preview of the picture. It can differ from stored orientation or color values; image sequences preview the first image."><span class="jr-preview-placeholder"><i data-icon="image" aria-hidden="true"></i></span></div>
+      <div class="jr-file-title"><h2>No image selected</h2><p>Open or drop an image to inspect its structure.</p><small title="Supported formats: JPEG pictures; MJPEG (Motion JPEG) image sequences; JPEG-LS lossless or near-lossless pictures; raw JPEG 2000 streams. Raw streams contain image bytes without an outer container.">JPEG · raw MJPEG · JPEG-LS · raw JPEG 2000 · raw image sequences</small></div>
+      <dl class="jr-file-stats" hidden><div title="Total size of the selected file in bytes. A byte holds eight bits; KiB means 1,024 bytes and MiB means 1,048,576 bytes."><dt>File size</dt><dd><strong>0</strong> bytes</dd><small></small></div><div title="Bytes assigned to recognized or recovered image regions. KiB means 1,024 bytes; MiB means 1,048,576 bytes."><dt>Parsed data</dt><dd><strong>0</strong> bytes</dd><small></small></div></dl>
+      <button type="button" class="jr-primary" id="jr-open" title="Choose an image file from your device. Its contents are inspected locally in your browser."><i data-icon="folder-open" aria-hidden="true"></i>Open image</button><input type="file" id="upload" accept=".jpg,.jpeg,.jpe,.jfif,.jif,.jfi,.mjpg,.mjpeg,.jls,.j2c,.j2k,.jpc,image/jpeg,image/jls" hidden>
+    </section>
+    <p class="jr-drop-feedback" id="jr-drop-feedback" role="status" hidden></p>
+    <section class="jr-empty jr-panel" id="jr-empty" aria-live="polite"><i data-icon="scan" aria-hidden="true"></i><h2>See what’s inside your image</h2><p>Drop a compatible file here, or use Open image, to inspect its structure and metadata. Files are analyzed in your browser.</p></section>
+    <div id="jr-results" hidden>
+    <section class="jr-structure jr-panel" aria-labelledby="jr-structure-title">
+      <header class="jr-section-header"><h2 id="jr-structure-title" title="A map of the stored file sections. Headers describe the image; encoded data stores the compressed picture; extra or unparsed bytes are shown separately.">File structure</h2><span title="Total number of bytes in the file. Each byte is a unit of data containing eight bits.">Total: <span class="jr-numeric">0</span> bytes</span></header>
+      <div class="jr-structure-subtitle">In file order · small regions expanded, not to scale</div>
+      <div class="jr-map" id="jr-map" aria-label="File regions"></div>
+      <div class="jr-region-hint" id="jr-region-hint">Hover for byte ranges. Click a region to highlight its segments.</div>
+      <div class="jr-warnings" id="jr-warnings" role="status" hidden><div class="jr-warning-messages" id="jr-warning-messages"></div><button type="button" class="jr-warm-button" id="jr-recover-image" title="Open the reconstruction tool to try to recover a viewable picture from available data. Recovery may be incomplete.">Recover image <i data-icon="arrow-right" aria-hidden="true"></i></button></div><div class="jr-finding" id="jr-finding" hidden><i data-icon="circle-alert" aria-hidden="true"></i><span id="jr-finding-description"></span><button type="button" class="jr-warm-button" id="jr-inspect-extra" title="Open the first region containing trailing or unparsed bytes to examine its contents.">Inspect bytes <i data-icon="arrow-right" aria-hidden="true"></i></button></div>
+    </section>
+    <div class="jr-workspace" id="jr-workspace" data-open="false">
+      <section class="jr-segments jr-panel" aria-labelledby="jr-segments-title">
+        <header class="jr-segments-header"><div><h2 id="jr-segments-title" title="Segments are individual sections of the file, such as image settings, metadata, compressed picture data and end markers.">Segments</h2><span id="jr-marker-count" title="A marker is a special byte sequence identifying a section. Regions also include compressed picture bytes and any extra or unparsed data."></span></div><a class="jr-button" id="jr-export" href="#" download="segments.csv" title="Save the segment list as CSV (comma-separated values), a text table that can be opened in a spreadsheet."><i data-icon="download" aria-hidden="true"></i>Export CSV</a></header>
+        <div class="jr-selection-hint" id="jr-selection-hint">Select a segment to open its details.</div>
+        <table class="jr-table"><thead><tr><th scope="col" title="Region number in file order, starting at 1.">#</th><th scope="col" title="A section of the file. The short code identifies its type; select it to see its meaning and content.">Segment</th><th scope="col" title="Byte position where a region begins, counted from zero at the start of the file.">Offset</th><th scope="col" title="Number of stored bytes in the region, including marker and length fields when present.">Size</th></tr></thead><tbody id="jr-rows"></tbody></table>
+        <footer class="jr-table-footer"><span id="jr-table-status">Offsets in bytes · sizes include headers where present</span></footer>
+      </section>
+      <section class="jr-detail jr-panel" id="jr-detail" aria-label="Selected segment details" hidden>
+        <header class="jr-detail-header"><div><span class="jr-eyebrow" id="jr-kind"></span><h2><span id="jr-code"></span><span class="jr-detail-name" id="jr-name"></span><span class="jr-marker-badge" id="jr-marker-badge" hidden title="The marker byte sequence, written in hexadecimal (base 16). The prefix 0x identifies this number format."></span></h2></div><div class="jr-detail-controls"><button type="button" class="jr-icon-button" id="jr-previous" aria-label="Previous segment" title="Open details for the preceding region in file order."><i data-icon="chevron-left" aria-hidden="true"></i></button><span id="jr-position" title="The selected region’s position in the list, followed by the total number of regions."></span><button type="button" class="jr-icon-button" id="jr-next" aria-label="Next segment" title="Open details for the following region in file order."><i data-icon="chevron-right" aria-hidden="true"></i></button><button type="button" class="jr-icon-button jr-close" id="jr-close-detail" aria-label="Close segment details" title="Close these details and return focus to the selected segment."><i data-icon="x" aria-hidden="true"></i></button></div></header>
+        <dl class="jr-metadata" id="jr-metadata"></dl>
+        <div class="jr-content-bar"><div class="jr-tabs" role="tablist" aria-label="Segment content view"><button type="button" class="jr-tab" role="tab" id="jr-tab-decoded" aria-selected="true" aria-controls="jr-content" data-view="decoded" title="Show fields the inspector can interpret, such as dimensions, camera metadata and compression settings."><i data-icon="file-code-2" aria-hidden="true"></i>Details</button><button type="button" class="jr-tab" role="tab" tabindex="-1" id="jr-tab-hex" aria-selected="false" aria-controls="jr-content" data-view="hex" title="Show the stored content as hexadecimal (base 16) numbers. Each pair of digits represents one byte."><i data-icon="code-xml" aria-hidden="true"></i>Hex</button><button type="button" class="jr-tab" role="tab" tabindex="-1" id="jr-tab-text" aria-selected="false" aria-controls="jr-content" data-view="text" title="Show an ASCII character preview of the content. Dots represent bytes outside the displayed character set."><i data-icon="text-cursor-input" aria-hidden="true"></i>Text</button></div><div class="jr-content-actions"><button type="button" class="jr-button" id="jr-download-symbols" title="Save one byte per decoded Huffman symbol (a number describing compressed picture values) in this scan, or image-data pass. Extra value bits and later detail-refinement bits are omitted; a scan refining only block averages (DC) may be empty." hidden>Download Huffman values</button><a href="#" class="jr-button" id="jr-download-huffman" download="huffman-mappings.csv" hidden title="Save a CSV (comma-separated values) table linking Huffman bit codes to the symbol numbers used to decode the picture."><i data-icon="download" aria-hidden="true"></i><span>Download mappings CSV</span></a><a href="#" class="jr-button" id="jr-download" download="segment.bin" title="Save the selected region’s content as a binary file, preserving the bytes. Marker and complete length fields are excluded."><i data-icon="download" aria-hidden="true"></i><span>Download raw</span></a><button type="button" class="jr-button" id="jr-copy" title="Copy the available content preview as hexadecimal numbers. Large regions are limited to the first 65,536 bytes; Download raw saves all content."><i data-icon="copy" aria-hidden="true"></i><span>Copy bytes</span></button></div></div>
+        <div class="jr-content" id="jr-content" role="tabpanel" aria-labelledby="jr-tab-decoded" aria-live="polite"></div>
+        <div class="jr-copy-fallback" id="jr-copy-fallback" hidden><label for="jr-copy-text">Select and copy these hex bytes</label><textarea id="jr-copy-text" readonly rows="3" title="Hexadecimal byte values ready to select and copy manually. Each pair of digits represents one byte."></textarea></div>
+        <footer class="jr-detail-footer"><span id="jr-payload-label" title="Number of content bytes available in this region, excluding its marker and any complete length field."></span><span id="jr-content-note"></span></footer>
+      </section>
+    </div>
+    </div>
+    <section id="jr-analyze" class="jr-analysis-layout" aria-label="Analyze image" hidden>
+      <aside class="jr-tool-sidebar jr-panel" aria-label="Analysis tools" id="jr-tool-selector"></aside>
+      <section class="jr-tool-main jr-panel" id="jr-analysis-tool" aria-label="Selected analysis"></section>
+    </section>
+    <section id="jr-compare" class="jr-tool-main jr-panel" aria-label="Compare files" hidden></section>
+    <span class="jr-sr" id="jr-status" role="status" aria-live="polite"></span>
+  </main>
+  <div class="jr-drop-target" id="jr-drop-target" aria-hidden="true" hidden><div class="jr-drop-card"><i data-icon="folder-open" aria-hidden="true"></i><h2>Drop image to open</h2><p>JPEG · JPEG-LS · raw JPEG 2000 codestreams</p></div></div>
+  <footer class="jr-app-footer">jpdump 2.0.0<div id="branding-bottom"></div></footer>
 </div>
-</form>
-
-<div id="info">
-<div id="image">
-</div>
-</div>
-<hr>
-<div class="branding" id="branding-bottom"></div>
-<div id="data-overlay"><div id="data-overlay-inner"><div id="data-overlay-title">Viewing Data: (<span id="data-overlay-length">0</span>)</div><a href="#" onclick="hideDataOverlay();return false">[X]</a>
-<div id="data-overlay-contentcontainer">
-<textarea id="data-overlay-content">
-
-
-
-</textarea>
-</div>
-</div></div>
+<div id="data-overlay" role="dialog" aria-modal="true" aria-labelledby="data-overlay-title"><div id="data-overlay-inner"><div id="data-overlay-title" title="Size of the byte data being previewed. A byte contains eight bits; large previews show only an initial portion.">Viewing Data: (<span id="data-overlay-length">0</span>)</div><a href="#" onclick="ContentView.hideOverlay();return false" aria-label="Close data preview">Close</a><div id="data-overlay-contentcontainer"><textarea id="data-overlay-content" aria-label="Raw data preview" readonly title="Preview of the selected byte data. Hexadecimal mode uses two digits per byte; text mode displays the bytes as characters."></textarea></div></div></div>
+<noscript><p class="warning">JavaScript is required to analyze images in your browser.</p></noscript>
 </body>
 </html>

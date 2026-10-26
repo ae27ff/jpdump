@@ -2,3 +2,8 @@
 branding.html
 branding.css
 *.md
+!README.md
+README.txt
+FORMATS.txt
+*.py
+
